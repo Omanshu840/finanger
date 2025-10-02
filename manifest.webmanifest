@@ -1,0 +1,1 @@
+{"name":"Finance Tracker","short_name":"Finance","description":"Track expenses and investments with offline support","start_url":"/finanger/","display":"standalone","background_color":"#ffffff","theme_color":"#0f172a","lang":"en","scope":"/finanger/","icons":[{"src":"/icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"}]}
