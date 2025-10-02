@@ -13,7 +13,18 @@
     <link rel="apple-touch-icon" href="/finanger/assets/icon-512-Bv8XlTOA.png" />
     
     <title>Finance Tracker</title>
-    <script type="module" crossorigin src="/finanger/assets/index-Bg4i3uS9.js"></script>
+
+    <!-- GitHub Pages SPA redirect script -->
+    <script>
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/finanger/assets/index-CgaQgSBX.js"></script>
     <link rel="stylesheet" crossorigin href="/finanger/assets/index-DPGsDi51.css">
   <link rel="manifest" href="/finanger/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/finanger/registerSW.js"></script></head>
   <body>
