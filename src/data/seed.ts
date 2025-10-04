@@ -52,9 +52,9 @@ const defaultCategories: CategorySeed[] = [
 ]
 
 const defaultAccounts = [
-  { name: 'Cash', type: 'cash', currency: 'USD' },
-  { name: 'Bank Account', type: 'bank', currency: 'USD' },
-  { name: 'Credit Card', type: 'credit_card', currency: 'USD' }
+  { name: 'Cash', type: 'cash', currency: 'INR' },
+  { name: 'Bank Account', type: 'bank', currency: 'INR' },
+  { name: 'Credit Card', type: 'credit_card', currency: 'INR' }
 ]
 
 /**
@@ -74,6 +74,15 @@ export async function checkAndSeedUserData(userId: string): Promise<boolean> {
     // User already has data, skip seeding
     if (existingCategories && existingCategories.length > 0) {
       return false
+    }
+
+    // Check in localStorage if user has been seeded (to avoid duplicate seeding)
+    if (typeof window !== 'undefined') {
+      const seededFlag = localStorage.getItem(`seeded_${userId}`)
+      if (seededFlag) {
+        return false
+      }
+      localStorage.setItem(`seeded_${userId}`, 'true')
     }
 
     // Seed categories
@@ -109,7 +118,7 @@ export async function checkAndSeedUserData(userId: string): Promise<boolean> {
       .from('profiles')
       .insert({
         user_id: userId,
-        base_currency: 'USD',
+        base_currency: 'INR',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         locale: navigator.language || 'en-US'
       })

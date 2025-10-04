@@ -1,16 +1,27 @@
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
-import { formatMonthLabel, isMonthInFuture } from '@/lib/date'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { isMonthInFuture } from '@/lib/date'
+import MonthSummaryCard from './MonthSummaryCard'
 
 interface MonthSwitcherProps {
   currentMonth: Date
   onMonthChange: (date: Date) => void
-  onNavigate: (direction: 'prev' | 'next') => void
+  onNavigate: (direction: 'prev' | 'next') => void,
+  totalAmount: number
+  expenseCount: number,
+  topCategory?: {
+    name: string
+    amount: number
+    color: string
+  },
 }
 
 export default function MonthSwitcher({
   currentMonth,
-  onNavigate
+  onNavigate,
+  totalAmount,
+  expenseCount,
+  topCategory
 }: MonthSwitcherProps) {
   const isNextDisabled = isMonthInFuture(currentMonth)
 
@@ -26,10 +37,12 @@ export default function MonthSwitcher({
       </Button>
 
       <div className="flex items-center gap-2 min-w-[180px] justify-center">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
-        <span className="font-semibold">
-          {formatMonthLabel(currentMonth)}
-        </span>
+        <MonthSummaryCard
+            totalAmount={totalAmount}
+            expenseCount={expenseCount}
+            topCategory={topCategory}
+            currentMonth={currentMonth}
+        />
       </div>
 
       <Button

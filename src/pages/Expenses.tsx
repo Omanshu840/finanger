@@ -1,32 +1,41 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/providers/AuthProvider'
-import { getMonthlyCategoryTotals, type CategoryTotal } from '@/data/expenses'
+import { getMonthlyCategoryTotals } from '@/data/expenses'
+import { getMonthlySplitwiseExpenses, type NormalizedSplitwiseExpense } from '@/data/splitwise'
+import { getAuthStatus } from '@/lib/splitwiseAuth'
+import { mergeMonthlyCategoryTotals, type MergedCategoryTotal } from '@/lib/merge'
 import { formatMonthKey, parseMonthKey, navigateMonth, getMonthRange } from '@/lib/date'
+import { supabase } from '@/lib/supabase'
 import MonthSwitcher from '@/components/expenses/MonthSwitcher'
-import MonthSummaryCard from '@/components/expenses/MonthSummaryCard'
 import CategoryCard from '@/components/expenses/CategoryCard'
 import CategoryDrawer from '@/components/expenses/CategoryDrawer'
 import ExpenseForm from '@/components/expenses/ExpenseForm'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { Plus, Loader2, WifiOff, Receipt } from 'lucide-react'
+import { Plus, Loader2, WifiOff, Receipt, Link as LinkIcon } from 'lucide-react'
 import { isOnline } from '@/lib/utils'
+import { mapSplitwiseCategory, getCategoryBucketKey } from '@/lib/splitwiseMap'
 
 export default function Expenses() {
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [categoryTotals, setCategoryTotals] = useState<CategoryTotal[]>([])
+  const [mergedTotals, setMergedTotals] = useState<MergedCategoryTotal[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedCategory, setSelectedCategory] = useState<CategoryTotal | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<MergedCategoryTotal | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [preselectedCategory, setPreselectedCategory] = useState<string | undefined>()
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [splitwiseConnected, setSplitwiseConnected] = useState(false)
+  
+  // Store ALL Splitwise expenses for the month (fetched once per month)
+  const [splitwiseExpenses, setSplitwiseExpenses] = useState<NormalizedSplitwiseExpense[]>([])
+  const [localCategories, setLocalCategories] = useState<Array<{ id: string; name: string; color: string }>>([])
+  
   const online = isOnline()
 
-  // Get current month from URL or default to today
   const currentMonth = useMemo(() => {
     const monthParam = searchParams.get('m')
     if (monthParam) {
@@ -41,46 +50,85 @@ export default function Expenses() {
     [currentMonth]
   )
 
-  // Calculate summary stats
   const summary = useMemo(() => {
-    const totalAmount = categoryTotals.reduce((sum, cat) => sum + cat.total_amount, 0)
-    const expenseCount = categoryTotals.reduce((sum, cat) => sum + cat.expense_count, 0)
-    const topCategory = categoryTotals.length > 0 ? {
-      name: categoryTotals[0].category_name,
-      amount: categoryTotals[0].total_amount,
-      color: categoryTotals[0].category_color
+    const totalAmount = mergedTotals.reduce((sum, cat) => sum + cat.total_amount, 0)
+    const expenseCount = mergedTotals.reduce((sum, cat) => sum + cat.expense_count, 0)
+    const topCategory = mergedTotals.length > 0 ? {
+      name: mergedTotals[0].category_name,
+      amount: mergedTotals[0].total_amount,
+      color: mergedTotals[0].category_color
     } : undefined
 
     return { totalAmount, expenseCount, topCategory }
-  }, [categoryTotals])
+  }, [mergedTotals])
 
-  // In-memory cache for month data
-  const [cache] = useState(() => new Map<string, CategoryTotal[]>())
-
-  // Load category totals for current month
   useEffect(() => {
-    if (user) {
-      loadCategoryTotals()
+    const initializeData = async () => {
+      if (!user) return
+
+      console.log('🔄 Initializing expenses page...')
+
+      // Check Splitwise connection first
+      const status = await getAuthStatus()
+      setSplitwiseConnected(status.isAuthenticated)
+      console.log('   Splitwise connected:', status.isAuthenticated)
+
+      // Then load data
+      await loadAllData(status.isAuthenticated)
     }
+
+    initializeData()
   }, [user, startDate, endDate])
 
-  const loadCategoryTotals = async () => {
-    const cacheKey = formatMonthKey(currentMonth)
-
-    // Check cache first
-    if (cache.has(cacheKey)) {
-      setCategoryTotals(cache.get(cacheKey)!)
-      setLoading(false)
-      return
-    }
-
+  const loadAllData = async (isSplitwiseConnected?: boolean) => {
     setLoading(true)
 
+    // Use passed value or state value
+    const swConnected = isSplitwiseConnected ?? splitwiseConnected
+
     try {
-      const totals = await getMonthlyCategoryTotals(startDate, endDate)
-      setCategoryTotals(totals)
-      cache.set(cacheKey, totals)
+      // Load local categories (needed for mapping)
+      const { data: categories } = await supabase
+        .from('categories')
+        .select('id, name, color')
+        .eq('user_id', user!.id)
+        .eq('type', 'expense')
+        .eq('is_archived', false)
+
+      setLocalCategories(categories || [])
+
+      // Load local totals
+      const localTotals = await getMonthlyCategoryTotals(startDate, endDate)
+
+      // Load Splitwise ONCE if enabled and connected
+      let swExpenses: NormalizedSplitwiseExpense[] = []
+      if (swConnected) {
+        try {
+          console.log('📥 Fetching Splitwise expenses for:', startDate, 'to', endDate)
+          swExpenses = await getMonthlySplitwiseExpenses(startDate, endDate)
+          console.log('✅ Fetched', swExpenses.length, 'Splitwise expenses')
+        } catch (error) {
+          console.error('❌ Error loading Splitwise:', error)
+          toast.error('Failed to load Splitwise expenses')
+        }
+      } else {
+        console.log('⏭️ Skipping Splitwise fetch connected:', swConnected, ')')
+      }
+
+      // Store Splitwise expenses in state
+      setSplitwiseExpenses(swExpenses)
+
+      // Merge totals
+      const merged = mergeMonthlyCategoryTotals(
+        localTotals,
+        swExpenses,
+        categories || []
+      )
+
+      setMergedTotals(merged)
+      console.log('✅ Loaded', merged.length, 'categories')
     } catch (error: any) {
+      console.error('❌ Error loading expenses:', error)
       toast.error('Failed to load expenses', {
         description: error.message
       })
@@ -92,10 +140,12 @@ export default function Expenses() {
   const handleMonthNavigate = (direction: 'prev' | 'next') => {
     const newMonth = navigateMonth(currentMonth, direction)
     const monthKey = formatMonthKey(newMonth)
-    setSearchParams({ m: monthKey })
+    const params = new URLSearchParams(searchParams)
+    params.set('m', monthKey)
+    setSearchParams(params)
   }
 
-  const handleCategoryClick = (category: CategoryTotal) => {
+  const handleCategoryClick = (category: MergedCategoryTotal) => {
     setSelectedCategory(category)
     setIsDrawerOpen(true)
   }
@@ -110,15 +160,11 @@ export default function Expenses() {
     setIsFormOpen(false)
     setPreselectedCategory(undefined)
     
-    // Invalidate cache and reload
-    const cacheKey = formatMonthKey(currentMonth)
-    cache.delete(cacheKey)
-    loadCategoryTotals()
+    // Reload data
+    loadAllData()
     
-    // Trigger drawer refresh
     setRefreshTrigger(prev => prev + 1)
     
-    // Reopen the drawer if a category was selected
     if (preselectedCategory && selectedCategory) {
       setTimeout(() => {
         setIsDrawerOpen(true)
@@ -127,34 +173,41 @@ export default function Expenses() {
   }
 
   const handleExpenseDeleted = () => {
-    // Invalidate cache and reload
-    const cacheKey = formatMonthKey(currentMonth)
-    cache.delete(cacheKey)
-    loadCategoryTotals()
+    // Reload data
+    loadAllData()
     
-    // Trigger drawer refresh
     setRefreshTrigger(prev => prev + 1)
   }
 
+  // Filter Splitwise expenses for the selected category (NO API CALL)
+    const getSplitwiseItemsForCategory = (category: MergedCategoryTotal): NormalizedSplitwiseExpense[] => {
+        if (splitwiseExpenses.length === 0) {
+            return []
+        }
+
+        // Splitwise expenses already filtered by owed_share > 0 during normalization
+        return splitwiseExpenses.filter(swExpense => {
+            // Map Splitwise category to bucket key
+            const mapping = mapSplitwiseCategory(swExpense.category_name, localCategories)
+            const bucketKey = getCategoryBucketKey(mapping)
+
+            // Check if it matches the selected category
+            return bucketKey === category.bucket_key
+        })
+    }
+
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Expenses</h1>
-          <p className="text-muted-foreground">
-            Monthly spending by category
-          </p>
-        </div>
-
-        <Button
-          onClick={() => handleAddExpense()}
-          disabled={!online}
-          size="default"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Expense
-        </Button>
+    {/* Floating Action Button for mobile */}
+      <div className="fixed bottom-18 right-4">
+          <Button
+              size="icon"
+              className="rounded-full h-14 w-14 shadow-lg"
+              onClick={() => handleAddExpense()}
+          >
+              <Plus className="h-6 w-6" />
+          </Button>
       </div>
 
       {/* Offline Warning */}
@@ -167,26 +220,73 @@ export default function Expenses() {
         </div>
       )}
 
+      {/* Splitwise Toggle */}
+      {splitwiseConnected ? (
+        // <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
+        //   <div className="flex items-center gap-3">
+        //     <LinkIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
+        //     <div>
+        //       <Label htmlFor="splitwise-toggle" className="font-medium cursor-pointer">
+        //         Include Splitwise Expenses
+        //       </Label>
+        //       <p className="text-xs text-muted-foreground">
+        //         Show shared expenses alongside local expenses
+        //       </p>
+        //     </div>
+        //   </div>
+        //   <Switch
+        //     id="splitwise-toggle"
+        //     checked={includeSplitwise}
+        //     onCheckedChange={handleToggleSplitwise}
+        //   />
+        // </div>
+        <></>
+      ) : (
+        <div className="flex items-center justify-between p-4 border border-dashed rounded-lg">
+          <div className="flex items-center gap-3">
+            <LinkIcon className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Connect Splitwise</p>
+              <p className="text-xs text-muted-foreground">
+                Import shared expenses from Splitwise
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.href = '/settings/profile'}
+          >
+            Connect
+          </Button>
+        </div>
+      )}
+
       {/* Month Switcher */}
       <div className="flex justify-center">
         <MonthSwitcher
           currentMonth={currentMonth}
           onMonthChange={(date) => {
             const monthKey = formatMonthKey(date)
-            setSearchParams({ m: monthKey })
+            const params = new URLSearchParams(searchParams)
+            params.set('m', monthKey)
+            setSearchParams(params)
           }}
           onNavigate={handleMonthNavigate}
+          totalAmount={summary.totalAmount}
+          expenseCount={summary.expenseCount}
+          topCategory={summary.topCategory}
         />
       </div>
 
-      {/* Month Summary Card */}
-      {!loading && categoryTotals.length > 0 && (
+      {/* Month Summary */}
+      {/* {!loading && mergedTotals.length > 0 && (
         <MonthSummaryCard
           totalAmount={summary.totalAmount}
           expenseCount={summary.expenseCount}
           topCategory={summary.topCategory}
         />
-      )}
+      )} */}
 
       {/* Loading State */}
       {loading && (
@@ -196,7 +296,7 @@ export default function Expenses() {
       )}
 
       {/* Empty State */}
-      {!loading && categoryTotals.length === 0 && (
+      {!loading && mergedTotals.length === 0 && (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
           <Receipt className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No expenses this month</h3>
@@ -211,18 +311,19 @@ export default function Expenses() {
       )}
 
       {/* Category Grid */}
-      {!loading && categoryTotals.length > 0 && (
+      {!loading && mergedTotals.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-4">Categories</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {categoryTotals.map((category) => (
+            {mergedTotals.map((category) => (
               <CategoryCard
-                key={category.category_id}
+                key={category.bucket_key}
                 categoryId={category.category_id}
                 categoryName={category.category_name}
                 categoryColor={category.category_color}
                 totalAmount={category.total_amount}
                 expenseCount={category.expense_count}
+                hasSplitwise={category.hasSplitwise}
                 onClick={() => handleCategoryClick(category)}
               />
             ))}
@@ -230,7 +331,7 @@ export default function Expenses() {
         </div>
       )}
 
-      {/* Category Drawer */}
+      {/* Category Drawer - Pass filtered Splitwise items (NO API CALL) */}
       {selectedCategory && (
         <CategoryDrawer
           key={refreshTrigger}
@@ -239,15 +340,17 @@ export default function Expenses() {
           categoryId={selectedCategory.category_id}
           categoryName={selectedCategory.category_name}
           categoryColor={selectedCategory.category_color}
-          totalAmount={categoryTotals.find(c => c.category_id === selectedCategory.category_id)?.total_amount || selectedCategory.total_amount}
+          totalAmount={mergedTotals.find(c => c.bucket_key === selectedCategory.bucket_key)?.total_amount || selectedCategory.total_amount}
           monthStart={startDate}
           monthEnd={endDate}
+          splitwiseItems={getSplitwiseItemsForCategory(selectedCategory)}
           onAddExpense={handleAddExpense}
           onExpenseDeleted={handleExpenseDeleted}
+          refreshKey={refreshTrigger}
         />
       )}
 
-      {/* Add Expense Form - Modal for all screen sizes */}
+      {/* Add Expense Form */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>

@@ -9,6 +9,9 @@ import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import OfflineFallback from '@/pages/OfflineFallback'
 import { registerSWUpdatePrompt } from '@/lib/sw-update'
 import { Toaster } from '@/components/ui/sonner'
+import SplitwiseCallback from '@/components/integrations/SplitwiseCallback'
+import InvestmentsAsset from '@/pages/InvestmentsAsset'
+import ImportHoldings from './components/investments/ImportHoldings'
 
 // Lazy-loaded routes
 const Auth = lazy(() => import('@/pages/Auth'))
@@ -86,6 +89,22 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: 'investments/asset/:assetId',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <InvestmentsAsset />
+          </Suspense>
+        )
+      },
+      {
+        path: 'investments/import',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <ImportHoldings />
+          </Suspense>
+        )
+      },
+      {
         path: 'settings',
         element: (
           <Suspense fallback={<LoadingFallback />}>
@@ -98,6 +117,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <Profile />
+          </Suspense>
+        )
+      },
+      {
+        path: 'integrations/splitwise/callback',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <SplitwiseCallback />
           </Suspense>
         )
       },

@@ -273,8 +273,11 @@ export async function getExpensesByCategoryForMonth(
     if (error) throw error
 
     return {
-      data: data as ExpenseListItem[],
-      hasMore: data.length === pageSize + 1
+      data: (data ?? []).map((item: any) => ({
+        ...item,
+        account: Array.isArray(item.account) ? item.account[0] ?? null : item.account ?? null
+      })) as ExpenseListItem[],
+      hasMore: (data ?? []).length === pageSize + 1
     }
   } catch (error: any) {
     console.error('Error getting expenses by category:', error)

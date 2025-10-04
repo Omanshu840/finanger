@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script>
+      // GitHub Pages SPA redirect hack
+      // This script takes the current URL and converts the path and query
+      // string into a query string parameter that can be read by the SPA
+      (function() {
+        var redirect = sessionStorage.redirect;
+        delete sessionStorage.redirect;
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect);
+        }
+      })();
+
+      // Store the redirect path
+      sessionStorage.redirect = location.href;
+      
+      // Get the base path (for subdirectory deployments)
+      var basePath = '/finanger/';
+      var path = location.pathname.slice(basePath.length - 1);
+      
+      // Redirect to index.html with the path as a query parameter
+      location.replace(
+        basePath + '?redirect=' + encodeURIComponent(path + location.search + location.hash)
+      );
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>

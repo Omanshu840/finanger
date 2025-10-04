@@ -55,11 +55,11 @@ export default function ExpenseForm({ expense, onSuccess, onCancel, preselectedC
       account_id: expense?.account_id || '',
       category_id: expense?.category_id || preselectedCategoryId || '',  // Update this
       date: expense?.date ? new Date(expense.date) : new Date(),
-      currency: expense?.currency || 'USD',
+      currency: expense?.currency || 'INR',
       amount: expense?.amount || 0,
       merchant: expense?.merchant || '',
       notes: expense?.notes || '',
-      tags: expense?.tags ? expense.tags : [],
+      tags: expense?.tags || [],
       receipt: null
     }
   })
@@ -355,7 +355,7 @@ export default function ExpenseForm({ expense, onSuccess, onCancel, preselectedC
                 <FormLabel>Currency</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="USD"
+                    placeholder="INR"
                     maxLength={3}
                     {...field}
                     onChange={(e) => field.onChange(e.target.value.toUpperCase())}

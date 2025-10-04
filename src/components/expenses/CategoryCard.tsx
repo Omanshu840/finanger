@@ -1,4 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card'
+// import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/currency'
 import { cn } from '@/lib/utils'
 import { Receipt } from 'lucide-react'
@@ -9,6 +10,7 @@ interface CategoryCardProps {
   categoryColor: string
   totalAmount: number
   expenseCount: number
+  hasSplitwise?: boolean
   currency?: string
   locale?: string
   onClick: () => void
@@ -19,11 +21,11 @@ export default function CategoryCard({
   categoryColor,
   totalAmount,
   expenseCount,
-  currency = 'USD',
+//   hasSplitwise = false,
+  currency = 'INR',
   locale = 'en-US',
   onClick
 }: CategoryCardProps) {
-  // Convert hex color to RGB for opacity
   const getRgbFromHex = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
     return result
@@ -32,7 +34,7 @@ export default function CategoryCard({
           g: parseInt(result[2], 16),
           b: parseInt(result[3], 16)
         }
-      : { r: 107, g: 114, b: 128 } // fallback to muted
+      : { r: 107, g: 114, b: 128 }
   }
 
   const rgb = getRgbFromHex(categoryColor)
@@ -42,8 +44,8 @@ export default function CategoryCard({
   return (
     <Card
       className={cn(
-        'cursor-pointer transition-all hover:shadow-md active:scale-95',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+        'cursor-pointer transition-all hover:shadow-md active:scale-95 py-0',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 py-0'
       )}
       style={{
         backgroundColor,
@@ -62,21 +64,26 @@ export default function CategoryCard({
     >
       <CardContent className="p-4 space-y-2">
         <div className="flex items-start justify-between">
-          <div
-            className="w-3 h-3 rounded-full mt-1"
-            style={{ backgroundColor: categoryColor }}
-          />
+          <div className="text-xs line-clamp-1" title={categoryName}>
+            {categoryName}
+          </div>
+
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Receipt className="h-3 w-3" />
             <span>{expenseCount}</span>
+            {/* {hasSplitwise && (
+              <Badge 
+                variant="secondary" 
+                className="ml-1 px-1 py-0 h-4 text-[10px] bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+              >
+                SW
+              </Badge>
+            )} */}
           </div>
         </div>
 
         <div>
-          <h3 className="font-semibold text-sm line-clamp-1" title={categoryName}>
-            {categoryName}
-          </h3>
-          <p className="text-xl font-bold mt-1">
+          <p className="text-lg font-bold mt-1">
             {formatCurrency(totalAmount, currency, locale)}
           </p>
         </div>

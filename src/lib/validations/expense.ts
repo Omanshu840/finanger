@@ -8,7 +8,7 @@ export const expenseSchema = z.object({
   amount: z.number(),
   merchant: z.string().optional(),
   notes: z.string().optional(),
-  tags: z.array(z.string()).default([]),
+  tags: z.array(z.string()).default([]).optional(),
   receipt: z
     .union([z.instanceof(File), z.null()])
     .optional(),
