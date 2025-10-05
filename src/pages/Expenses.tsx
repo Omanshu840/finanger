@@ -17,6 +17,10 @@ import { toast } from 'sonner'
 import { Plus, Loader2, WifiOff, Receipt, Link as LinkIcon } from 'lucide-react'
 import { isOnline } from '@/lib/utils'
 import { mapSplitwiseCategory, getCategoryBucketKey } from '@/lib/splitwiseMap'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import AddSplitwiseExpense from '@/components/expenses/AddSplitwiseExpense'
+import { SplitwiseExpenseSheet } from '@/components/expenses/splitwise/SplitwiseExpenseSheet'
 
 export default function Expenses() {
   const { user } = useAuth()
@@ -351,7 +355,7 @@ export default function Expenses() {
       )}
 
       {/* Add Expense Form */}
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+      {/* <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Expense</DialogTitle>
@@ -367,7 +371,29 @@ export default function Expenses() {
             />
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
+
+      {/* <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <SheetContent 
+          side={"right"} 
+          className="w-full sm:max-w-2xl overflow-y-auto p-0"
+        >
+          <ScrollArea className="h-full">
+            <div className="px-6 py-6">
+              <SheetHeader className="mb-6">
+                <SheetTitle>Add Expense</SheetTitle>
+                <SheetDescription>
+                  Record a shared expense with your groups or friends
+                </SheetDescription>
+              </SheetHeader>
+              
+              <AddSplitwiseExpense />
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet> */}
+
+      <SplitwiseExpenseSheet open={isFormOpen} onOpenChange={setIsFormOpen}/>
     </div>
   )
 }

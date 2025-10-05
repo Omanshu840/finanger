@@ -60,6 +60,13 @@ export interface Currency {
 export interface Category {
   id: number
   name: string
+  icon?: string
+  icon_types?: {
+    square?: {
+      large?: string
+      xlarge?: string
+    }
+  }
   subcategories?: Category[]
 }
 
@@ -256,7 +263,9 @@ class SplitwiseClient {
     // Handle split methods
     if (payload.split_equally) {
       body.split_equally = true
-    } else if (payload.users && payload.users.length > 0) {
+    }
+    
+    if (payload.users && payload.users.length > 0) {
       // Flatten users array for API
       payload.users.forEach((user, index) => {
         if (user.user_id) {
