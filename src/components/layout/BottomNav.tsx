@@ -1,17 +1,15 @@
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {
-  LayoutDashboard,
   Receipt,
-  TrendingUp,
   Settings
 } from 'lucide-react'
 
 const routes = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+  // { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Expenses', icon: Receipt, href: '/expenses' },
-  { label: 'Investments', icon: TrendingUp, href: '/investments' },
-  { label: 'Settings', icon: Settings, href: '/settings' }
+  // { label: 'Investments', icon: TrendingUp, href: '/investments' },
+  { label: 'Settings', icon: Settings, href: 'settings/profile' }
 ]
 
 export default function BottomNav() {

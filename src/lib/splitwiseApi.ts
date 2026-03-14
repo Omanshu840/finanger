@@ -1,7 +1,7 @@
 // splitwiseApi.ts (Updated)
 import { cacheCurrentUser, getCachedCurrentUser, getTokens, storeTokens } from './tokenStorage'
 
-const SPLITWISE_API_BASE = 'https://corsproxy.io/https://secure.splitwise.com/api/v3.0'
+const SPLITWISE_API_BASE = 'https://secure.splitwise.com/api/v3.0'
 
 export interface SplitwiseUser {
   id: number
@@ -18,7 +18,11 @@ export interface SplitwiseGroup {
   name: string
   group_type?: string
   members: GroupMember[]
-  simplify_by_default: boolean
+  simplify_by_default: boolean,
+  updated_at?: string,
+  avatar?: {
+    medium?: string;
+  }
 }
 
 export interface GroupMember {
@@ -50,6 +54,7 @@ export interface SplitwiseFriend {
   groups: Array<{
     group_id: number
   }>
+  updated_at?: string
 }
 
 export interface Currency {

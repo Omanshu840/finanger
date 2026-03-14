@@ -10,8 +10,6 @@ import OfflineFallback from '@/pages/OfflineFallback'
 import { registerSWUpdatePrompt } from '@/lib/sw-update'
 import { Toaster } from '@/components/ui/sonner'
 import SplitwiseCallback from '@/components/integrations/SplitwiseCallback'
-import InvestmentsAsset from '@/pages/InvestmentsAsset'
-import ImportHoldings from './components/investments/ImportHoldings'
 
 // Lazy-loaded routes
 const Auth = lazy(() => import('@/pages/Auth'))
@@ -62,7 +60,7 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/dashboard" replace />
+        element: <Navigate to="/expenses" replace />
       },
       {
         path: 'dashboard',
@@ -85,22 +83,6 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <Investments />
-          </Suspense>
-        )
-      },
-      {
-        path: 'investments/asset/:assetId',
-        element: (
-          <Suspense fallback={<LoadingFallback />}>
-            <InvestmentsAsset />
-          </Suspense>
-        )
-      },
-      {
-        path: 'investments/import',
-        element: (
-          <Suspense fallback={<LoadingFallback />}>
-            <ImportHoldings />
           </Suspense>
         )
       },

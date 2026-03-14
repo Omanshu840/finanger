@@ -1,20 +1,16 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { type GroupMember } from '@/lib/splitwiseApi'
 import { Percent, Hash, DollarSign, Plus, Equal, Check } from 'lucide-react'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
@@ -41,7 +37,6 @@ export function SplitwiseSplitOptions({
   onOwedSharesChange,
 }: SplitwiseSplitOptionsProps) {
   const [showDialog, setShowDialog] = useState(false);
-  const [open, setOpen] = useState(false)
   const [activeMethod, setActiveMethod] = useState<SplitMethod>(splitMethod)
   const [localOwedShares, setLocalOwedShares] = useState<Map<number, string>>(new Map(owedShares));
   const [selectedParticipants, setSelectedParticipants] = useState<Set<number>>(

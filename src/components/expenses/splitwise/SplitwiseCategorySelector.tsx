@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -33,7 +32,6 @@ export function SplitwiseCategorySelector({
 }: SplitwiseCategorySelectorProps) {
   const [showDialog, setShowDialog] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     loadCategories()
@@ -41,13 +39,10 @@ export function SplitwiseCategorySelector({
 
   const loadCategories = async () => {
     try {
-      setLoading(true)
       const data = await splitwiseClient.getCategories()
       setCategories(data)
     } catch (error) {
       console.error('Error loading categories:', error)
-    } finally {
-      setLoading(false)
     }
   }
 

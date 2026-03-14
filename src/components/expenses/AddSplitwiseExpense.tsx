@@ -28,14 +28,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   CalendarIcon,
-  Upload,
   Users,
   DollarSign,
   Percent,
   Hash,
-  Plus,
-  Minus,
-  X
+  Plus
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -45,7 +42,6 @@ import {
   type SplitwiseFriend,
   type Currency,
   type Category,
-  type GroupMember,
   type CreateExpensePayload
 } from '@/lib/splitwiseApi'
 

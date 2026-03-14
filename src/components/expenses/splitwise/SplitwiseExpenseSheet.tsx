@@ -2,10 +2,7 @@ import { useState } from 'react'
 import {
   Sheet,
   SheetContent,
-  SheetTrigger,
 } from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { SplitwiseFriendGroupSelector } from './SplitwiseFriendGroupSelector'
 import { SplitwiseExpenseForm } from './SplitwiseExpenseForm'
@@ -78,16 +75,6 @@ export function SplitwiseExpenseSheet({
 // Export floating button variant
 export function SplitwiseFloatingAddButton() {
   return (
-    <SplitwiseExpenseSheet
-      trigger={
-        <Button
-          size="lg"
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 sm:h-auto sm:w-auto sm:rounded-md sm:px-6"
-        >
-          <Plus className="h-6 w-6 sm:mr-2" />
-          <span className="hidden sm:inline">Add Expense</span>
-        </Button>
-      }
-    />
+    <SplitwiseExpenseSheet/>
   )
 }

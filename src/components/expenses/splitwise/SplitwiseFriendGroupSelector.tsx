@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent } from '@/components/ui/card'
-import { Search, Users, User, X, ChevronRight } from 'lucide-react'
+import { Search, Users, User, ChevronRight } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   splitwiseClient,
@@ -18,8 +18,7 @@ interface SplitwiseFriendGroupSelectorProps {
 }
 
 export function SplitwiseFriendGroupSelector({
-  onSelect,
-  onClose,
+  onSelect
 }: SplitwiseFriendGroupSelectorProps) {
   const [groups, setGroups] = useState<SplitwiseGroup[]>([])
   const [friends, setFriends] = useState<SplitwiseFriend[]>([])
@@ -157,7 +156,7 @@ export function SplitwiseFriendGroupSelector({
                 <>
                 {filteredFriends.map((friend) => {
                   const balance = getBalance(friend)
-                  if (!viewAll && (!(balance || isWithinLast7Days(friend.updated_at)))) return <></>;
+                  if (!viewAll && (!(balance || isWithinLast7Days(friend.updated_at || '')))) return <></>;
                   return (
                     <Card
                       key={friend.id}
@@ -213,7 +212,7 @@ export function SplitwiseFriendGroupSelector({
               ) : (
                 <>
                   {filteredGroups.map((group) => {
-                    if (!viewAll && !isWithinLast7Days(group.updated_at)) return <></>;
+                    if (!viewAll && !isWithinLast7Days(group.updated_at || '')) return <></>;
                     return (
                       <Card
                         key={group.id}

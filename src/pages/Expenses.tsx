@@ -10,16 +10,11 @@ import { supabase } from '@/lib/supabase'
 import MonthSwitcher from '@/components/expenses/MonthSwitcher'
 import CategoryCard from '@/components/expenses/CategoryCard'
 import CategoryDrawer from '@/components/expenses/CategoryDrawer'
-import ExpenseForm from '@/components/expenses/ExpenseForm'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { Plus, Loader2, WifiOff, Receipt, Link as LinkIcon } from 'lucide-react'
 import { isOnline } from '@/lib/utils'
 import { mapSplitwiseCategory, getCategoryBucketKey } from '@/lib/splitwiseMap'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import AddSplitwiseExpense from '@/components/expenses/AddSplitwiseExpense'
 import { SplitwiseExpenseSheet } from '@/components/expenses/splitwise/SplitwiseExpenseSheet'
 
 export default function Expenses() {
@@ -30,7 +25,6 @@ export default function Expenses() {
   const [selectedCategory, setSelectedCategory] = useState<MergedCategoryTotal | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [preselectedCategory, setPreselectedCategory] = useState<string | undefined>()
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [splitwiseConnected, setSplitwiseConnected] = useState(false)
   
@@ -154,26 +148,9 @@ export default function Expenses() {
     setIsDrawerOpen(true)
   }
 
-  const handleAddExpense = (categoryId?: string) => {
-    setPreselectedCategory(categoryId)
+  const handleAddExpense = () => {
     setIsDrawerOpen(false)
     setIsFormOpen(true)
-  }
-
-  const handleFormSuccess = () => {
-    setIsFormOpen(false)
-    setPreselectedCategory(undefined)
-    
-    // Reload data
-    loadAllData()
-    
-    setRefreshTrigger(prev => prev + 1)
-    
-    if (preselectedCategory && selectedCategory) {
-      setTimeout(() => {
-        setIsDrawerOpen(true)
-      }, 100)
-    }
   }
 
   const handleExpenseDeleted = () => {

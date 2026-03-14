@@ -1,9 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {
-  LayoutDashboard,
   Receipt,
-  TrendingUp,
   Settings,
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -14,24 +12,24 @@ interface SidebarProps {
 }
 
 const routes = [
-  {
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    href: '/dashboard',
-    color: 'text-sky-500'
-  },
+  // {
+  //   label: 'Dashboard',
+  //   icon: LayoutDashboard,
+  //   href: '/dashboard',
+  //   color: 'text-sky-500'
+  // },
   {
     label: 'Expenses',
     icon: Receipt,
     href: '/expenses',
     color: 'text-violet-500'
   },
-  {
-    label: 'Investments',
-    icon: TrendingUp,
-    href: '/investments',
-    color: 'text-pink-700'
-  },
+  // {
+  //   label: 'Investments',
+  //   icon: TrendingUp,
+  //   href: '/investments',
+  //   color: 'text-pink-700'
+  // },
   {
     label: 'Settings',
     icon: Settings,

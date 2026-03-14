@@ -6,7 +6,8 @@ interface Transaction {
   price: number | null
   fee: number
   trade_date: string
-  created_at: string
+  created_at: string,
+  amount: number | null
 }
 
 interface Lot {
