@@ -6,15 +6,11 @@ import BottomNav from './BottomNav'
 import AuthGuard from '@/components/auth/AuthGuard'
 import UpdatePrompt from '@/components/pwa/UpdatePrompt'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
-import { useAutoSeed } from '@/hooks/useAutoSeed'
 
 export default function AppShell() {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const isAuthPage = location.pathname === '/auth'
-
-  // Auto-seed data for new users
-  useAutoSeed()
 
   // Keyboard shortcut to toggle sidebar (Cmd/Ctrl + B)
   useEffect(() => {
@@ -46,10 +42,10 @@ export default function AppShell() {
         <div className="min-h-dvh flex bg-background text-foreground">
           <Sidebar open={sidebarOpen} onOpenChange={setSidebarOpen} />
           
-          <div className="flex-1 flex flex-col md:ml-64 lg:ml-72">
+          <div className="min-w-0 flex-1 flex flex-col md:ml-64 lg:ml-72">
             <Header onMenuClick={() => setSidebarOpen(true)} />
             
-            <main className="flex-1 p-3 sm:p-4 md:p-6 pb-20 md:pb-6">
+            <main className="min-w-0 flex-1 p-3 sm:p-4 md:p-6 pb-20 md:pb-6">
               <Outlet />
             </main>
             

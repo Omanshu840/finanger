@@ -1,5 +1,5 @@
+import { AssetsPage } from '@/features/investments/assets/AssetsPage'
+
 export default function Investments() {
-    return (
-        <div></div>
-    );
+  return <AssetsPage />
 }

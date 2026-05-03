@@ -33,7 +33,7 @@ import {
 import { toast } from "sonner";
 import { Loader2, LogOut, User, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import ConnectSplitwiseButton from "@/components/integrations/ConnectSplitwiseButton";
+import ConnectSplitwiseButton from "@/features/splitwise/components/ConnectSplitwiseButton";
 
 const CURRENCIES = [
     { code: "USD", name: "US Dollar" },

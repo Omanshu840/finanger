@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import AppShell from '@/components/layout/AppShell'
 import AuthGuard from '@/components/auth/AuthGuard'
@@ -9,9 +10,9 @@ import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import OfflineFallback from '@/pages/OfflineFallback'
 import { registerSWUpdatePrompt } from '@/lib/sw-update'
 import { Toaster } from '@/components/ui/sonner'
-import SplitwiseCallback from '@/components/integrations/SplitwiseCallback'
-import InvestmentsAsset from '@/pages/InvestmentsAsset'
-import ImportHoldings from './components/investments/ImportHoldings'
+import SplitwiseCallback from '@/features/splitwise/components/SplitwiseCallback'
+import { ImportPage } from '@/features/investments/import/ImportPage'
+import { queryClient } from '@/lib/queryClient'
 
 // Lazy-loaded routes
 const Auth = lazy(() => import('@/pages/Auth'))
@@ -89,18 +90,10 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: 'investments/asset/:assetId',
-        element: (
-          <Suspense fallback={<LoadingFallback />}>
-            <InvestmentsAsset />
-          </Suspense>
-        )
-      },
-      {
         path: 'investments/import',
         element: (
           <Suspense fallback={<LoadingFallback />}>
-            <ImportHoldings />
+            <ImportPage />
           </Suspense>
         )
       },
@@ -138,11 +131,13 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ThemeProvider defaultTheme="system" storageKey="finance-app-theme">
-      <AuthProvider>
-        <RouterProvider router={router} />
-        <Toaster />
-      </AuthProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system" storageKey="finance-app-theme">
+        <AuthProvider>
+          <RouterProvider router={router} />
+          <Toaster />
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 )

@@ -1,0 +1,13 @@
+{
+  "name": "vercel-proxy",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@vercel/node": "^5.7.15"
+  }
+}

@@ -7,9 +7,7 @@ export const transactionSchema = z.object({
   type: z.enum(transactionTypes),
   asset_id: z.string().uuid('Please select an asset').optional(),
   portfolio_account_id: z.string().uuid('Please select an account'),
-  trade_date: z.date({
-    required_error: 'Trade date is required'
-  }),
+  trade_date: z.date('Trade date is required'),
   settle_date: z.date().optional().nullable(),
   quantity: z.number().positive('Quantity must be positive').optional().nullable(),
   price: z.number().positive('Price must be positive').optional().nullable(),

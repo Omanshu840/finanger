@@ -15,6 +15,27 @@ export function formatCurrency(
 }
 
 /**
+ * Format a number as Indian Rupee without paise for compact portfolio displays.
+ */
+export function formatINR(value: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+/**
+ * Format investment units/quantity.
+ */
+export function formatUnits(value: number, decimals = 2): string {
+  return value.toLocaleString('en-IN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  })
+}
+
+/**
  * Parse a currency string to a number
  */
 export function parseCurrencyString(value: string): number {
