@@ -5,424 +5,257 @@ import { useAuth } from "@/providers/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { profileSchema, type ProfileInput } from "@/lib/validations/profile";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-    FormDescription,
-} from "@/components/ui/form";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { toast } from "sonner";
-import { Loader2, LogOut, User, Mail } from "lucide-react";
+import {
+  Loader2,
+  LogOut,
+  User,
+  Mail,
+  PlugZap,
+  ChevronRight,
+  UtensilsCrossed,
+  Wallet,
+  ShoppingBag,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ConnectSplitwiseButton from "@/features/splitwise/components/ConnectSplitwiseButton";
+import { SwiggyIntegration } from "@/features/swiggy/components/SwiggyIntegration";
+import { cn } from "@/lib/utils";
+import { BlinkitIntegration } from "@/features/blinkit/components/BlinkitIntegration";
 
-const CURRENCIES = [
-    { code: "USD", name: "US Dollar" },
-    { code: "EUR", name: "Euro" },
-    { code: "GBP", name: "British Pound" },
-    { code: "INR", name: "Indian Rupee" },
-    { code: "JPY", name: "Japanese Yen" },
-    { code: "AUD", name: "Australian Dollar" },
-    { code: "CAD", name: "Canadian Dollar" },
-];
+type IntegrationKey = "splitwise" | "swiggy" | "blinkit";
 
-const TIMEZONES = [
-    "UTC",
-    "America/New_York",
-    "America/Chicago",
-    "America/Denver",
-    "America/Los_Angeles",
-    "Europe/London",
-    "Europe/Paris",
-    "Asia/Tokyo",
-    "Asia/Kolkata",
-    "Australia/Sydney",
-];
-
-const LOCALES = [
-    { code: "en-US", name: "English (US)" },
-    { code: "en-GB", name: "English (UK)" },
-    { code: "en-IN", name: "English (India)" },
-    { code: "de-DE", name: "German" },
-    { code: "fr-FR", name: "French" },
-    { code: "es-ES", name: "Spanish" },
-    { code: "ja-JP", name: "Japanese" },
-];
-
-const WEEKDAYS = [
-    { value: 0, name: "Sunday" },
-    { value: 1, name: "Monday" },
-    { value: 2, name: "Tuesday" },
-    { value: 3, name: "Wednesday" },
-    { value: 4, name: "Thursday" },
-    { value: 5, name: "Friday" },
-    { value: 6, name: "Saturday" },
+const integrations = [
+  {
+    key: "splitwise" as const,
+    name: "Splitwise",
+    description: "Sync shared expenses and settlements",
+    icon: Wallet,
+    iconClass:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  },
+  {
+    key: "swiggy" as const,
+    name: "Swiggy",
+    description: "Import and manage food order history",
+    icon: UtensilsCrossed,
+    iconClass:
+      "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+  },
+  {
+    key: "blinkit" as const,
+    name: "Blinkit",
+    description: "Import grocery order history",
+    icon: ShoppingBag,
+    iconClass: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
+  }
 ];
 
 export default function Profile() {
-    const { user, signOut } = useAuth();
-    const navigate = useNavigate();
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [selectedIntegration, setSelectedIntegration] =
+    useState<IntegrationKey | null>(null);
 
-    const form = useForm<ProfileInput>({
-        resolver: zodResolver(profileSchema),
-        defaultValues: {
-            base_currency: "INR",
-            timezone: "UTC",
-            locale: "en-US",
-            first_day_of_week: 0,
-            first_day_of_month: 1,
-            number_format: "en-US",
-        },
-    });
+  const form = useForm<ProfileInput>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      base_currency: "INR",
+      timezone: "UTC",
+      locale: "en-US",
+      first_day_of_week: 0,
+      first_day_of_month: 1,
+      number_format: "en-US",
+    },
+  });
 
-    useEffect(() => {
-        loadProfile();
-    }, [user]);
+  useEffect(() => {
+    loadProfile();
+  }, [user]);
 
-    const loadProfile = async () => {
-        if (!user) return;
+  const loadProfile = async () => {
+    if (!user) return;
 
-        try {
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("*")
-                .eq("user_id", user.id)
-                .single();
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
 
-            if (error && error.code !== "PGRST116") {
-                throw error;
-            }
+      if (error && error.code !== "PGRST116") {
+        throw error;
+      }
 
-            if (data) {
-                form.reset({
-                    base_currency: data.base_currency,
-                    timezone: data.timezone,
-                    locale: data.locale,
-                    first_day_of_week: data.first_day_of_week,
-                    first_day_of_month: data.first_day_of_month,
-                    number_format: data.number_format,
-                });
-            }
-        } catch (error: any) {
-            console.error("Error loading profile:", error);
-            toast.error("Failed to load profile", {
-                description: error.message,
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const onSubmit = async (values: ProfileInput) => {
-        if (!user) return;
-
-        setSaving(true);
-
-        try {
-            const { error } = await supabase.from("profiles").upsert(
-                {
-                    user_id: user.id,
-                    ...values,
-                    updated_at: new Date().toISOString(),
-                },
-                {
-                    onConflict: "user_id",
-                }
-            );
-
-            if (error) throw error;
-
-            toast.success("Profile updated", {
-                description: "Your settings have been saved",
-            });
-        } catch (error: any) {
-            console.error("Error saving profile:", error);
-            toast.error("Failed to save profile", {
-                description: error.message,
-            });
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleSignOut = async () => {
-        await signOut();
-        navigate("/auth");
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
+      if (data) {
+        form.reset({
+          base_currency: data.base_currency,
+          timezone: data.timezone,
+          locale: data.locale,
+          first_day_of_week: data.first_day_of_week,
+          first_day_of_month: data.first_day_of_month,
+          number_format: data.number_format,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error loading profile:", error);
+      toast.error("Failed to load profile", {
+        description: error.message,
+      });
+    } finally {
+      setLoading(false);
     }
+  };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  const selectedMeta = integrations.find(
+    (item) => item.key === selectedIntegration
+  );
+
+  if (loading) {
     return (
-        <div className="space-y-6 max-w-3xl">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">
-                    Profile Settings
-                </h1>
-                <p className="text-muted-foreground">
-                    Manage your account settings and preferences
-                </p>
-            </div>
-
-            {/* User Info Card */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <User className="h-5 w-5" />
-                        Account Information
-                    </CardTitle>
-                    <CardDescription>
-                        Your account details and authentication status
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
-                        <Mail className="h-5 w-5 text-muted-foreground" />
-                        <div className="flex-1">
-                            <Label className="text-sm text-muted-foreground">
-                                Email
-                            </Label>
-                            <p className="font-medium">{user?.email}</p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <ConnectSplitwiseButton />
-                    </div>
-
-                    <Button
-                        onClick={handleSignOut}
-                        variant="destructive"
-                        className="w-full sm:w-auto"
-                    >
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Sign Out
-                    </Button>
-                </CardContent>
-            </Card>
-
-            {/* Preferences Card */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Preferences</CardTitle>
-                    <CardDescription>
-                        Customize your app experience
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Form {...form}>
-                        <form
-                            onSubmit={form.handleSubmit(onSubmit)}
-                            className="space-y-6"
-                        >
-                            <FormField
-                                control={form.control}
-                                name="base_currency"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Base Currency</FormLabel>
-                                        <Select
-                                            onValueChange={field.onChange}
-                                            defaultValue={field.value}
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select currency" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {CURRENCIES.map((currency) => (
-                                                    <SelectItem
-                                                        key={currency.code}
-                                                        value={currency.code}
-                                                    >
-                                                        {currency.code} -{" "}
-                                                        {currency.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            Your primary currency for reporting
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="timezone"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Timezone</FormLabel>
-                                        <Select
-                                            onValueChange={field.onChange}
-                                            defaultValue={field.value}
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select timezone" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {TIMEZONES.map((tz) => (
-                                                    <SelectItem
-                                                        key={tz}
-                                                        value={tz}
-                                                    >
-                                                        {tz}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            Used for scheduling and date display
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="locale"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Language & Region</FormLabel>
-                                        <Select
-                                            onValueChange={field.onChange}
-                                            defaultValue={field.value}
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select locale" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {LOCALES.map((locale) => (
-                                                    <SelectItem
-                                                        key={locale.code}
-                                                        value={locale.code}
-                                                    >
-                                                        {locale.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            Affects date and number formatting
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="first_day_of_week"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>First Day of Week</FormLabel>
-                                        <Select
-                                            onValueChange={(value) =>
-                                                field.onChange(parseInt(value))
-                                            }
-                                            defaultValue={field.value.toString()}
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select day" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {WEEKDAYS.map((day) => (
-                                                    <SelectItem
-                                                        key={day.value}
-                                                        value={day.value.toString()}
-                                                    >
-                                                        {day.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            Used in calendar and reports
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="first_day_of_month"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>
-                                            First Day of Month
-                                        </FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                type="number"
-                                                min={1}
-                                                max={28}
-                                                {...field}
-                                                onChange={(e) =>
-                                                    field.onChange(
-                                                        parseInt(e.target.value)
-                                                    )
-                                                }
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            For monthly budget cycles (1-28)
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <Button
-                                type="submit"
-                                className="w-full sm:w-auto"
-                                disabled={saving}
-                            >
-                                {saving && (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                )}
-                                {saving ? "Saving..." : "Save Changes"}
-                            </Button>
-                        </form>
-                    </Form>
-                </CardContent>
-            </Card>
-        </div>
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
+  }
+
+  return (
+    <>
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
+          <p className="text-muted-foreground">
+            Manage your account settings and connected integrations
+          </p>
+        </div>
+
+        <div className="grid gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Account Information
+              </CardTitle>
+              <CardDescription>
+                Your account details and authentication status
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3 rounded-xl border bg-muted/40 p-4">
+                <Mail className="h-5 w-5 text-muted-foreground" />
+                <div className="flex-1">
+                  <Label className="text-sm text-muted-foreground">Email</Label>
+                  <p className="font-medium">{user?.email}</p>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleSignOut}
+                variant="destructive"
+                className="w-full sm:w-auto"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PlugZap className="h-5 w-5" />
+                Integrations
+              </CardTitle>
+              <CardDescription>
+                Select an integration to open its management panel
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-3">
+              {integrations.map((integration) => {
+                const Icon = integration.icon;
+
+                return (
+                  <button
+                    key={integration.key}
+                    type="button"
+                    onClick={() => setSelectedIntegration(integration.key)}
+                    className={cn(
+                      "flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all",
+                      "hover:bg-muted/40 hover:shadow-sm",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-11 w-11 items-center justify-center rounded-xl",
+                        integration.iconClass
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{integration.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {integration.description}
+                      </p>
+                    </div>
+
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Drawer
+        open={!!selectedIntegration}
+        onOpenChange={(open) => {
+          if (!open) setSelectedIntegration(null);
+        }}
+      >
+        <DrawerContent className="mx-auto max-w-2xl">
+          <DrawerHeader className="text-left">
+            <DrawerTitle>{selectedMeta?.name}</DrawerTitle>
+            <DrawerDescription>
+              {selectedMeta?.description}
+            </DrawerDescription>
+          </DrawerHeader>
+
+          <div className="px-4 pb-6">
+            <div className="rounded-xl border bg-muted/20 p-4">
+              {selectedIntegration === "splitwise" && <ConnectSplitwiseButton />}
+              {selectedIntegration === "swiggy" && <SwiggyIntegration />}
+              {selectedIntegration === "blinkit" && <BlinkitIntegration />}
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    </>
+  );
 }

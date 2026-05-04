@@ -4,14 +4,15 @@ import {
   LayoutDashboard,
   Receipt,
   TrendingUp,
-  Settings
+  User
 } from 'lucide-react'
 
 const routes = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Expenses', icon: Receipt, href: '/expenses' },
+  { label: 'Orders', icon: Receipt, href: '/orders' },
   { label: 'Investments', icon: TrendingUp, href: '/investments' },
-  { label: 'Settings', icon: Settings, href: '/settings' }
+  { label: 'Profile', icon: User, href: '/settings/profile' }
 ]
 
 export default function BottomNav() {

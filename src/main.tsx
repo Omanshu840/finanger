@@ -13,6 +13,7 @@ import { Toaster } from '@/components/ui/sonner'
 import SplitwiseCallback from '@/features/splitwise/components/SplitwiseCallback'
 import { ImportPage } from '@/features/investments/import/ImportPage'
 import { queryClient } from '@/lib/queryClient'
+import OrdersScreen from './features/orders/components/OrdersScreen'
 
 // Lazy-loaded routes
 const Auth = lazy(() => import('@/pages/Auth'))
@@ -78,6 +79,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <Expenses />
+          </Suspense>
+        )
+      },
+      {
+        path: 'orders',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <OrdersScreen/>
           </Suspense>
         )
       },

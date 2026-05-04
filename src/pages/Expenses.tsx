@@ -148,24 +148,6 @@ export default function Expenses() {
 
       {/* Splitwise Toggle */}
       {splitwiseConnected ? (
-        // <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
-        //   <div className="flex items-center gap-3">
-        //     <LinkIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
-        //     <div>
-        //       <Label htmlFor="splitwise-toggle" className="font-medium cursor-pointer">
-        //         Include Splitwise Expenses
-        //       </Label>
-        //       <p className="text-xs text-muted-foreground">
-        //         Show shared expenses alongside local expenses
-        //       </p>
-        //     </div>
-        //   </div>
-        //   <Switch
-        //     id="splitwise-toggle"
-        //     checked={includeSplitwise}
-        //     onCheckedChange={handleToggleSplitwise}
-        //   />
-        // </div>
         <></>
       ) : (
         <div className="flex items-center justify-between p-4 border border-dashed rounded-lg">
@@ -204,15 +186,6 @@ export default function Expenses() {
           topCategory={summary.topCategory}
         />
       </div>
-
-      {/* Month Summary */}
-      {/* {!loading && mergedTotals.length > 0 && (
-        <MonthSummaryCard
-          totalAmount={summary.totalAmount}
-          expenseCount={summary.expenseCount}
-          topCategory={summary.topCategory}
-        />
-      )} */}
 
       {/* Loading State */}
       {loading && (
