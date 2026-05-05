@@ -1,6 +1,63 @@
 import { fetchOrderHistory } from "@/features/blinkit/api/blinkitApi";
 import type { UnifiedOrder, OrderItem } from "../types";
 
+
+const MONTHS: Record<string, number> = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+};
+
+function parseBlinkitDate(dateText: string): Date | null {
+  if (!dateText) return null;
+
+  const text = dateText.trim().replace(/\s+/g, " ");
+
+  // Case 1: "19 Mar, 10:16 am" -> current year
+  const withTimeMatch = text.match(
+    /^(\d{1,2})\s([A-Za-z]{3}),\s(\d{1,2}):(\d{2})\s(am|pm)$/i
+  );
+
+  if (withTimeMatch) {
+    const [, dayStr, monthStr, hourStr, minuteStr, ampm] = withTimeMatch;
+    const day = Number(dayStr);
+    const month = MONTHS[monthStr.toLowerCase()];
+    const year = new Date().getFullYear();
+
+    let hour = Number(hourStr);
+    const minute = Number(minuteStr);
+
+    if (ampm.toLowerCase() === "pm" && hour !== 12) hour += 12;
+    if (ampm.toLowerCase() === "am" && hour === 12) hour = 0;
+
+    return new Date(year, month, day, hour, minute, 0, 0);
+  }
+
+  // Case 2: "06 Nov 2025", "15 Jun 2025", "23 Feb 2025"
+  const dateOnlyMatch = text.match(/^(\d{1,2})\s([A-Za-z]{3})\s(\d{4})$/i);
+
+  if (dateOnlyMatch) {
+    const [, dayStr, monthStr, yearStr] = dateOnlyMatch;
+    const day = Number(dayStr);
+    const month = MONTHS[monthStr.toLowerCase()];
+    const year = Number(yearStr);
+
+    return new Date(year, month, day, 12, 0, 0, 0);
+  }
+
+  return null;
+}
+
+
 function parseOrderContainer(snippet: any): UnifiedOrder | null {
   const d = snippet?.data ?? {};
   const items: any[] = d.items ?? [];
@@ -38,12 +95,11 @@ function parseOrderContainer(snippet: any): UnifiedOrder | null {
 
   // Date — "19 Mar, 10:16 am" — parse manually
   const dateText: string = headerData?.subtitle?.text ?? "";
-  let placedAt = new Date();
-  if (dateText) {
-    // Append current year since Blinkit omits it
-    const parsed = new Date(`${dateText} ${new Date().getFullYear()}`);
-    if (!isNaN(parsed.getTime())) placedAt = parsed;
+  const parsedDate = parseBlinkitDate(dateText);
+  if (!parsedDate) {
+    console.warn("Failed to parse Blinkit date:", dateText);
   }
+  const placedAt = parsedDate ?? new Date();
 
   // Delivery time label e.g. "Arrived in 9 minutes"
   const deliveryLabel: string = headerData?.title?.text ?? "";
