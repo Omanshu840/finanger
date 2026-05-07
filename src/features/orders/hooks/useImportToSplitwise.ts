@@ -2,11 +2,9 @@ import { useState } from "react";
 import { splitwiseClient } from "@/features/splitwise/api/splitwiseApi";
 import {
 	fetchBlinkitOrderDetail,
-	type BlinkitOrderDetail,
-	type DetailedOrderItem,
 } from "../adapters/blinkitDetailAdapter";
 import type { SplitwiseGroup } from "@/features/splitwise/api/splitwiseApi";
-import type { UnifiedOrder } from "../types";
+import { INTEGRATION_LABELS, type DetailedOrderItem, type OrderDetail, type UnifiedOrder } from "../types";
 import { toast } from "sonner";
 
 export interface LineItemSplit {
@@ -16,7 +14,7 @@ export interface LineItemSplit {
 
 export interface ImportState {
 	step: "idle" | "loading_details" | "select_group" | "split_items" | "submitting" | "done";
-	orderDetail: BlinkitOrderDetail | null;
+	orderDetail: OrderDetail | null;
 	groups: SplitwiseGroup[];
 	selectedGroup: SplitwiseGroup | null;
 	currentUserId: number | null;
@@ -50,12 +48,40 @@ export function useImportToSplitwise() {
 	const startImport = async (order: UnifiedOrder) => {
 		setState((s) => ({ ...s, step: "loading_details", error: null }));
 		try {
-			const token = getBlinkitToken();
-			if (!token) throw new Error("Blinkit not connected");
+			let orderDetail: OrderDetail;
 
-			const { orderId, cartId } = parseOrderAndCartId(order.id);
-			const [orderDetail, groups, currentUser] = await Promise.all([
-				fetchBlinkitOrderDetail(token, orderId, cartId, order.placedAt.toDateString()),
+			if (order.source === "blinkit") {
+				const token = getBlinkitToken();
+				if (!token) throw new Error("Blinkit not connected");
+
+				const { orderId, cartId } = parseOrderAndCartId(order.id);
+				orderDetail = await fetchBlinkitOrderDetail(token, orderId, cartId, order.placedAt.toDateString());
+			} else {
+				orderDetail = {
+					source: order.source,
+					orderId: order.id,
+					orderDate: order.placedAt.toDateString(),
+					cartId: "",
+					items: order.items.map((i, idx) => ({
+						id: String(idx),
+						name: i.name,
+						quantity: String(i.quantity),
+						price: i.price ?? 0,
+						imageUrl: i.imageUrl,
+					})),
+					billLines: order.rawData?.map((d) => ({
+						label: d.label,
+						amount: d.amount,
+						isTotal: d.isTotal,
+					})) ?? [],
+					totalAmount: order.totalAmount ?? 0,
+					currency: order.currency,
+					deliveryLabel: order.deliveryLabel,
+					rawData: order.rawData,
+				} as OrderDetail;
+			}
+
+			const [groups, currentUser] = await Promise.all([
 				splitwiseClient.getGroups(),
 				splitwiseClient.getCurrentUser(),
 			]);
@@ -160,7 +186,7 @@ export function useImportToSplitwise() {
 			);
 
 			const notes = [
-				`Blinkit Order #${orderDetail.orderId}`,
+				`${INTEGRATION_LABELS[orderDetail.source || "blinkit"]} Order #${orderDetail.orderId}`,
 				``,
 				`Items:`,
 				...itemLines,
@@ -179,7 +205,7 @@ export function useImportToSplitwise() {
 			// ── 5. Create expense ──────────────────────────────────────────────
 			await splitwiseClient.createExpense({
 				cost: totalCost.toFixed(2),
-				description: `Blinkit #${orderDetail.orderId}`,
+				description: `${INTEGRATION_LABELS[orderDetail.source || "blinkit"]} #${orderDetail.orderId}`,
 				details: notes,          // ← Splitwise "notes" field
 				date: expenseDate,       // ← order date, not today
 				group_id: selectedGroup.id,
@@ -206,7 +232,7 @@ export function useImportToSplitwise() {
 }
 
 // Combine product items + charge bill lines into a flat list
-function buildAllLineItems(detail: BlinkitOrderDetail) {
+function buildAllLineItems(detail: OrderDetail) {
 	const productItems = detail.items.map((item) => ({
 		id: item.id,
 		label: item.name,

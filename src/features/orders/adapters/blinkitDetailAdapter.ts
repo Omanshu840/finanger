@@ -1,28 +1,5 @@
 import { fetchBlinkitOrderDetails } from "@/features/blinkit/api/blinkitApi";
-
-export interface DetailedOrderItem {
-  id: string;
-  name: string;
-  quantity: string;       // "1 pair x 1"
-  price: number;          // actual paid price
-  mrpPrice?: number;
-  imageUrl?: string;
-}
-
-export interface BillLineItem {
-  label: string;
-  amount: number;         // negative = discount, positive = charge
-  isTotal: boolean;
-}
-
-export interface BlinkitOrderDetail {
-  orderId: string;
-  orderDate: string | null;
-  cartId: string;
-  items: DetailedOrderItem[];
-  billLines: BillLineItem[];
-  totalAmount: number;
-}
+import type { BillLineItem, DetailedOrderItem, OrderDetail } from "../types";
 
 // Input example: "~~<regular-200|{grey-600|₹119}>~~ ₹89"
 //   MRP is inside {grey-600|₹119}  → captured by mrpMatch
@@ -53,7 +30,7 @@ export async function fetchBlinkitOrderDetail(
   orderId: string,
   cartId: string,
   orderDate?: string 
-): Promise<BlinkitOrderDetail> {
+): Promise<OrderDetail> {
   const snippets = await fetchBlinkitOrderDetails(accessToken, orderId, cartId);
 
   const items: DetailedOrderItem[] = [];

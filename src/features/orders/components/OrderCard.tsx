@@ -1,7 +1,7 @@
 import type { UnifiedOrder, IntegrationMeta } from "../types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftRight, ChevronDown, ChevronUp, Zap } from "lucide-react";
+import { ArrowLeftRight, Banana, Carrot, ChevronDown, ChevronUp, CupSoda, Popsicle, Sandwich, Zap } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -21,6 +21,14 @@ const STATUS_STYLES: Record<string, string> = {
     "border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-800 dark:bg-yellow-950/40 dark:text-yellow-400",
 };
 
+const ProductIcons = [
+  <CupSoda className="h-6 w-6 rounded-lg border-2 border-background bg-muted/60" />,
+  <Carrot className="h-6 w-6 rounded-lg border-2 border-background bg-muted/60" />,
+  <Banana className="h-6 w-6 rounded-lg border-2 border-background bg-muted/60" />,
+  <Popsicle className="h-6 w-6 rounded-lg border-2 border-background bg-muted/60" />,
+  <Sandwich className="h-6 w-6 rounded-lg border-2 border-background bg-muted/60" />,
+]
+
 export function OrderCard({ order, meta, onImportToSplitwise }: Props) {
   const [expanded, setExpanded] = useState(false);
 
@@ -29,12 +37,16 @@ export function OrderCard({ order, meta, onImportToSplitwise }: Props) {
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md py-2">
-      <CardContent className="p-0">
+      <CardContent className="p-0" onClick={() => setExpanded(!expanded)}>
         {/* Main header */}
         <div className="flex items-start gap-3 p-4">
           {/* Source icon */}
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-muted/40 text-xl">
-            {meta.emoji}
+            {meta.logoUrl ? (
+              <img src={meta.logoUrl} alt={meta.label} className="h-full w-full object-contain" />
+            ) : (
+              <span>{meta.label.charAt(0)}</span>
+            )}
           </div>
 
           {/* Order meta */}
@@ -88,10 +100,7 @@ export function OrderCard({ order, meta, onImportToSplitwise }: Props) {
                     className="h-9 w-9 rounded-lg border-2 border-background object-cover shadow-sm"
                   />
                 ) : (
-                  <div
-                    key={idx}
-                    className="h-9 w-9 rounded-lg border-2 border-background bg-muted/60"
-                  />
+                  ProductIcons[idx % ProductIcons.length]
                 )
               )}
               {order.items.length > 4 && (
@@ -119,7 +128,7 @@ export function OrderCard({ order, meta, onImportToSplitwise }: Props) {
                       className="h-10 w-10 shrink-0 rounded-lg border object-cover"
                     />
                   ) : (
-                    <div className="h-10 w-10 shrink-0 rounded-lg border bg-muted/40" />
+                    ProductIcons[idx % ProductIcons.length]
                   )}
                   <span className="flex-1 text-foreground">{item.name}</span>
                   {item.price != null && (

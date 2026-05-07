@@ -133,7 +133,7 @@ class SplitwiseClient {
 
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const token = await this.getAccessToken()
-    
+
     if (!token) {
       throw new Error('Not authenticated with Splitwise')
     }
@@ -156,7 +156,7 @@ class SplitwiseClient {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('API Error:', errorText)
-      
+
       try {
         const errorData = JSON.parse(errorText)
         throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`)
@@ -182,14 +182,14 @@ class SplitwiseClient {
 
     console.log('📥 Fetching current user from API')
     const response = await this.request<{ user: SplitwiseUser }>('/get_current_user')
-    
+
     await cacheCurrentUser({
       id: response.user.id,
       email: response.user.email,
       first_name: response.user.first_name,
       last_name: response.user.last_name
     })
-    
+
     const tokens = await getTokens()
     if (tokens) {
       await storeTokens({
@@ -197,7 +197,7 @@ class SplitwiseClient {
         user: response.user
       })
     }
-    
+
     return response.user
   }
 
@@ -249,10 +249,16 @@ class SplitwiseClient {
     return response.categories
   }
 
-  /**
-   * Create a new expense
-   */
-  async createExpense(payload: CreateExpensePayload): Promise<{ expense: SplitwiseExpense; errors: any }> {
+/** Create a new expense
+ *
+ * Rounding strategy for users[]:
+ *  - Round all but the last member's owed_share to 2dp
+ *  - Last member gets (total - sum of others) to absorb any floating point residue
+ *  - This guarantees sum(owed_shares) === cost exactly, which Splitwise requires
+ */
+  async createExpense(
+    payload: CreateExpensePayload
+  ): Promise<{ expense: SplitwiseExpense; errors: any }> {
     const body: any = {
       cost: payload.cost,
       description: payload.description,
@@ -265,14 +271,14 @@ class SplitwiseClient {
     if (payload.category_id) body.category_id = payload.category_id
     if (payload.repeat_interval) body.repeat_interval = payload.repeat_interval
 
-    // Handle split methods
     if (payload.split_equally) {
       body.split_equally = true
     }
-    
+
     if (payload.users && payload.users.length > 0) {
-      // Flatten users array for API
-      payload.users.forEach((user, index) => {
+      const users = this.normalizeUserShares(payload.users, payload.cost)
+
+      users.forEach((user, index) => {
         if (user.user_id) {
           body[`users__${index}__user_id`] = user.user_id
         } else {
@@ -285,18 +291,78 @@ class SplitwiseClient {
       })
     }
 
-    const response = await this.request<{ expenses: SplitwiseExpense[]; errors: any }>(
-      '/create_expense',
-      {
-        method: 'POST',
-        body: JSON.stringify(body)
-      }
-    )
+    const response = await this.request<{
+      expenses: SplitwiseExpense[]
+      errors: any
+    }>('/create_expense', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
 
     return {
       expense: response.expenses[0],
-      errors: response.errors
+      errors: response.errors,
     }
+  }
+
+  /**
+   * Normalize owed_shares so they sum exactly to the expense cost.
+   *
+   * Problem: callers pass raw floating point strings like "87.333333".
+   * If we naively call .toFixed(2) on each, the sum can be off by ±0.01
+   * and Splitwise will reject the expense with a validation error.
+   *
+   * Strategy:
+   *  1. Parse all owed_shares as floats
+   *  2. Round all but the last to 2dp
+   *  3. Give the last member the remainder: total - sum(others)
+   *  4. Recalculate paid_shares with the same residue logic so
+   *     sum(paid_shares) also equals total exactly
+   */
+  private normalizeUserShares(
+    users: ExpenseUser[],
+    costStr: string
+  ): ExpenseUser[] {
+    if (users.length === 0) return users
+
+    const total = Math.round(parseFloat(costStr) * 100) // work in integer cents
+
+    if (isNaN(total)) return users
+
+    // ── Normalize owed_shares ──────────────────────────────────────────────
+    const owedCents = users.map((u) => Math.round(parseFloat(u.owed_share) * 100))
+    const normalizedOwed: number[] = []
+    let owedAllocated = 0
+
+    owedCents.forEach((cents, i) => {
+      if (i === owedCents.length - 1) {
+        // Last member absorbs rounding residue
+        normalizedOwed.push(total - owedAllocated)
+      } else {
+        normalizedOwed.push(cents)
+        owedAllocated += cents
+      }
+    })
+
+    // ── Normalize paid_shares ──────────────────────────────────────────────
+    const paidCents = users.map((u) => Math.round(parseFloat(u.paid_share) * 100))
+    const normalizedPaid: number[] = []
+    let paidAllocated = 0
+
+    paidCents.forEach((cents, i) => {
+      if (i === paidCents.length - 1) {
+        normalizedPaid.push(total - paidAllocated)
+      } else {
+        normalizedPaid.push(cents)
+        paidAllocated += cents
+      }
+    })
+
+    return users.map((user, i) => ({
+      ...user,
+      owed_share: (normalizedOwed[i] / 100).toFixed(2),
+      paid_share: (normalizedPaid[i] / 100).toFixed(2),
+    }))
   }
 
   /**
@@ -338,7 +404,7 @@ class SplitwiseClient {
     offset?: number
   }): Promise<{ expenses: any[] }> {
     const queryParams = new URLSearchParams()
-    
+
     if (params.dated_after) queryParams.append('dated_after', params.dated_after)
     if (params.dated_before) queryParams.append('dated_before', params.dated_before)
     if (params.limit) queryParams.append('limit', params.limit.toString())

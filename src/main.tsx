@@ -14,6 +14,8 @@ import SplitwiseCallback from '@/features/splitwise/components/SplitwiseCallback
 import { ImportPage } from '@/features/investments/import/ImportPage'
 import { queryClient } from '@/lib/queryClient'
 import OrdersScreen from './features/orders/components/OrdersScreen'
+import "@/lib/pdfWorker";
+
 
 // Lazy-loaded routes
 const Auth = lazy(() => import('@/pages/Auth'))

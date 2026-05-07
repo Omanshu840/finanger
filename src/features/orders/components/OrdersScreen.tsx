@@ -1,21 +1,20 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useOrders } from "../hooks/useOrders";
 import { OrderCard } from "./OrderCard";
 import { OrderSkeleton } from "./OrderSkeleton";
 import { SourceFilterBar } from "./SourceFilterBar";
 import type { IntegrationMeta, UnifiedOrder } from "../types";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-	RefreshCw,
 	ShoppingBag,
 	Search,
 	AlertCircle,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { format } from "date-fns";
 import { ImportToSplitwiseSheet } from "./ImportToSplitwiseSheet";
+import { getManualOrders } from "../storage/manualOrdersStorage";
+import { ImportOrdersDropdown } from "./ImportOrdersDropdown";
 
 function getBlinkitConnected(): boolean {
 	try {
@@ -32,35 +31,8 @@ const INTEGRATION_META: IntegrationMeta[] = [
 		label: "Blinkit",
 		color: "bg-yellow-100",
 		textColor: "text-yellow-700 dark:text-yellow-400",
-		emoji: "🛒",
+		logoUrl: "https://blinkit.com/images/faviconChange.ico",
 		isConnected: getBlinkitConnected(),
-		isSupported: true,
-	},
-	{
-		key: "swiggy",
-		label: "Swiggy",
-		color: "bg-orange-100",
-		textColor: "text-orange-700 dark:text-orange-400",
-		emoji: "🍜",
-		isConnected: false,
-		isSupported: true,
-	},
-	{
-		key: "zomato",
-		label: "Zomato",
-		color: "bg-red-100",
-		textColor: "text-red-700 dark:text-red-400",
-		emoji: "🍕",
-		isConnected: false,
-		isSupported: true,
-	},
-	{
-		key: "zepto",
-		label: "Zepto",
-		color: "bg-purple-100",
-		textColor: "text-purple-700 dark:text-purple-400",
-		emoji: "⚡",
-		isConnected: false,
 		isSupported: true,
 	},
 	{
@@ -68,38 +40,76 @@ const INTEGRATION_META: IntegrationMeta[] = [
 		label: "FirstClub",
 		color: "bg-blue-100",
 		textColor: "text-blue-700 dark:text-blue-400",
-		emoji: "🏪",
-		isConnected: false,
-		isSupported: false,
+		logoUrl: "https://www.firstclub.site/Logo.png",
+		isConnected: true,
+		isSupported: true,
 	},
-	{
-		key: "amazon_now",
-		label: "Amazon Now",
-		color: "bg-amber-100",
-		textColor: "text-amber-700 dark:text-amber-400",
-		emoji: "📦",
-		isConnected: false,
-		isSupported: false,
-	},
-	{
-		key: "flipkart_minutes",
-		label: "Flipkart Minutes",
-		color: "bg-indigo-100",
-		textColor: "text-indigo-700 dark:text-indigo-400",
-		emoji: "🚀",
-		isConnected: false,
-		isSupported: false,
-	},
+	// {
+	// 	key: "swiggy",
+	// 	label: "Swiggy",
+	// 	color: "bg-orange-100",
+	// 	textColor: "text-orange-700 dark:text-orange-400",
+	// 	logoUrl: "https://www.swiggy.com/logo.png",
+	// 	isConnected: false,
+	// 	isSupported: true,
+	// },
+	// {
+	// 	key: "zomato",
+	// 	label: "Zomato",
+	// 	color: "bg-red-100",
+	// 	textColor: "text-red-700 dark:text-red-400",
+	// 	logoUrl: "https://www.zomato.com/logo.png",
+	// 	isConnected: false,
+	// 	isSupported: true,
+	// },
+	// {
+	// 	key: "zepto",
+	// 	label: "Zepto",
+	// 	color: "bg-purple-100",
+	// 	textColor: "text-purple-700 dark:text-purple-400",
+	// 	logoUrl: "https://www.zepto.com/logo.png",
+	// 	isConnected: false,
+	// 	isSupported: true,
+	// },
+	// {
+	// 	key: "amazon_now",
+	// 	label: "Amazon Now",
+	// 	color: "bg-amber-100",
+	// 	textColor: "text-amber-700 dark:text-amber-400",
+	// 	logoUrl: "https://www.amazon.com/logo.png",
+	// 	isConnected: false,
+	// 	isSupported: false,
+	// },
+	// {
+	// 	key: "flipkart_minutes",
+	// 	label: "Flipkart Minutes",
+	// 	color: "bg-indigo-100",
+	// 	textColor: "text-indigo-700 dark:text-indigo-400",
+	// 	logoUrl: "https://www.flipkart.com/logo.png",
+	// 	isConnected: false,
+	// 	isSupported: false,
+	// },
 ];
 
 export default function OrdersScreen() {
-	const { orders, loading, errors, lastFetched, refetch } = useOrders();
+	const { orders, loading, errors } = useOrders();
 	const [activeFilter, setActiveFilter] = useState<string>("all");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [splitwiseOrder, setSpltwiseOrder] = useState<UnifiedOrder | null>(null);
+	const [manualOrders, setManualOrders] = useState<UnifiedOrder[]>([]);
+
+	useEffect(() => {
+		setManualOrders(getManualOrders());
+	}, []);
+
+	const allOrders = useMemo(() => {
+		return [...manualOrders, ...orders].sort(
+			(a, b) => b.placedAt.getTime() - a.placedAt.getTime()
+		);
+	}, [manualOrders, orders]);
 
 	const filteredOrders = useMemo(() => {
-		let result = orders;
+		let result = allOrders;
 
 		if (activeFilter !== "all") {
 			result = result.filter((o) => o.source === activeFilter);
@@ -116,7 +126,7 @@ export default function OrdersScreen() {
 		}
 
 		return result;
-	}, [orders, activeFilter, searchQuery]);
+	}, [allOrders, activeFilter, searchQuery]);
 
 	const connectedCount = INTEGRATION_META.filter((m) => m.isConnected).length;
 
@@ -140,25 +150,11 @@ export default function OrdersScreen() {
 						</p>
 					</div>
 
-					<div className="flex shrink-0 items-center gap-2">
-						{lastFetched && (
-							<span className="text-xs text-muted-foreground">
-								Updated {format(lastFetched, "h:mm a")}
-							</span>
-						)}
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={refetch}
-							disabled={loading}
-							className="gap-1.5"
-						>
-							<RefreshCw
-								className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-							/>
-							Refresh
-						</Button>
-					</div>
+					<ImportOrdersDropdown
+						onImported={(order) => {
+							setManualOrders((prev) => [order, ...prev]);
+						}}
+					/>
 				</div>
 
 				{/* Errors */}

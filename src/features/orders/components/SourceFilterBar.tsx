@@ -45,7 +45,11 @@ export function SourceFilterBar({ integrations, activeFilter, onFilterChange }: 
                   : "cursor-default border-dashed border-border bg-muted/30 text-muted-foreground"
               )}
             >
-              <span className="text-base leading-none">{integration.emoji}</span>
+              <img
+                src={integration.logoUrl}
+                alt={integration.label}
+                className="h-4 w-4 rounded-sm object-contain"
+              />
               {integration.label}
               {!isClickable && (
                 <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
