@@ -1,28 +1,46 @@
 import type { UnifiedOrder, OrderItem } from "../types";
+import type { TextItem, TextMarkedContent } from "pdfjs-dist/types/src/display/api";
+
+function isTextItem(item: TextItem | TextMarkedContent): item is TextItem {
+  return "str" in item;
+}
+
+// ── PDF Text Extraction ───────────────────────────────────────────────────────
+//
+// Uses pdfjs-dist with a CDN-hosted worker to avoid Vite's node_modules
+// serving issues. Returns a single flat string of all text tokens joined
+// by spaces — we intentionally flatten everything since token positions
+// are inconsistent across PDF renderers.
 
 export async function extractTextFromPdf(file: File): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
+
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
   const arrayBuffer = await file.arrayBuffer();
+
   const pdf = await pdfjsLib.getDocument({
     data: arrayBuffer,
     useWorkerFetch: false,
+    isEvalSupported: false,
     useSystemFonts: true,
   }).promise;
 
-  const allTokens: string[] = [];
+  const pageTexts: string[] = [];
+
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    for (const item of content.items) {
-      if ("str" in item && item.str.trim()) {
-        allTokens.push(item.str.trim());
-      }
-    }
+
+    const pageTokens = content.items
+      .filter(isTextItem)
+      .filter((item) => !!item.str.trim())
+      .map((item) => item.str.trim());
+
+    pageTexts.push(pageTokens.join(" "));
   }
 
-  return allTokens.join("\n");
+  return pageTexts.join(" ");
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -36,148 +54,127 @@ function parseInvoiceDate(raw: string): Date {
     jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
     jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
   };
-  const match = raw.trim().match(/(\d{2})-([A-Za-z]{3})-(\d{4})/);
+  const match = raw.match(/(\d{2})-([A-Za-z]{3})-(\d{4})/i);
   if (!match) return new Date();
   const [, day, monthStr, year] = match;
   return new Date(Number(year), months[monthStr.toLowerCase()], Number(day), 12, 0, 0);
 }
 
-const isNumeric = (s: string) => /^[\d,]+\.?\d*$/.test(s.trim());
-const isPercent = (s: string) => /^[\d.]+%$/.test(s.trim());
-const isNumericOrPercent = (s: string) => isNumeric(s) || isPercent(s);
-
-// ── Main parser ───────────────────────────────────────────────────────────────
+// ── Main Parser ───────────────────────────────────────────────────────────────
 //
-// Actual token stream (from logs) for each item row:
+// Trolleypop/FirstClub invoices emit tokens collapsed into one long string.
+// Depending on the PDF renderer, rows may appear as:
 //
-//   "1"  |  "Button Mushroom x 2"  |  "158.00"  |  "20.25%"  |  "126.00"
-//   |  "0.00%"  |  "0.00"  |  "0.00%"  |  "0.00"  |  "0.00%"  |  "0.00"  |  "126.00"
+//   FORM A (spaced, single-line per item):
+//     "1 Button Mushroom x 2 158.00 20.25% 126.00 0.00% 0.00 ... 126.00"
 //
-// Pattern per item:
-//   token[i]   = row number "1", "2", ...
-//   token[i+1] = "Item Name x Qty"   ← the key: contains " x " surrounded by spaces
-//   token[i+2] = gross value          e.g. "158.00"
-//   token[i+3] = disc %               e.g. "20.25%"
-//   token[i+4] = taxable amt          e.g. "126.00"
-//   token[i+5..i+10] = tax columns    all "0.00%" / "0.00"
-//   token[i+11] = row total           e.g. "126.00"  ← this is what we want
+//   FORM B (collapsed, no spaces between serial+name or qty+price):
+//     "1Robusta Banana Ripe x 135.0020.00%28.00 0.00% ... 28.00"
+//
+//   FORM C (multiline item name, split across tokens):
+//     "3 Chutnefy Coriander Chutney" ... "x 1" ... "125.00 14.40% ..."
+//
+// Strategy: flatten everything to one string, then use a global regex that:
+//   - anchors on a row serial number (\d+)
+//   - captures item name (non-greedy up to "x <qty>")
+//   - captures qty
+//   - captures 6 pairs of (number, percent|number) for the tax columns
+//   - captures the final row total
+//
+// This handles all three forms above.
 
 export function parseFirstClubInvoiceText(
-  rawText: string,
+  rawText: string
 ): UnifiedOrder {
-  const tokens = rawText
-    .split("\n")
-    .map((t) => t.trim())
-    .filter(Boolean);
+  const flat = rawText
+    .replace(/\u00a0/g, " ")
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   // ── Metadata ──────────────────────────────────────────────────────────────
-  let orderId = `firstclub-${Date.now()}`;
-  let placedAt = new Date();
+  const orderNoMatch = flat.match(/Order\s*No[:\s]*([A-Z0-9]+)/i);
+  const dateMatch = flat.match(/Date[:\s]*(\d{2}-[A-Za-z]{3}-\d{4})/i);
 
-  for (const token of tokens) {
-    const orderNoMatch = token.match(/Order\s*No[:\s]+([A-Z0-9]+)/i);
-    if (orderNoMatch) orderId = `firstclub-${orderNoMatch[1]}`;
+  const orderId = orderNoMatch
+    ? `firstclub-${orderNoMatch[1]}`
+    : `firstclub-${Date.now()}`;
 
-    const dateMatch = token.match(/Date\s*[:\s]+(\d{2}-[A-Za-z]{3}-\d{4})/i);
-    if (dateMatch) placedAt = parseInvoiceDate(dateMatch[1]);
+  const placedAt = dateMatch ? parseInvoiceDate(dateMatch[1]) : new Date();
+
+  // ── Slice to just the items section ───────────────────────────────────────
+  //
+  // Every FirstClub invoice has:
+  //   "...Rate Amt. Rate Amt. Rate Amt. 1 First Item x 1 ..."
+  //                                    ↑ items start here
+  //   "...Total <number> Item Total..."
+  //              ↑ items end here
+  //
+  // We slice the flat string to only the region between these two markers
+  // so the regex never touches the address block or footer.
+
+  const ITEMS_START_MARKER = /Rate\s+Amt\.\s+Rate\s+Amt\.\s+Rate\s+Amt\./i;
+  const ITEMS_END_MARKER = /\bTotal\s+[\d,.]+\s+[\d,.]+\s+[\d,.]+\s+[\d,.]+\s+[\d,.]+\s+Item\s+Total/i;
+
+  const startMatch = ITEMS_START_MARKER.exec(flat);
+  if (!startMatch) {
+    console.error("[FC Parser] Could not find items table start marker. Flat:\n", flat);
+    throw new Error("No items found — make sure this is a FirstClub invoice PDF");
   }
 
-  // ── Items ──────────────────────────────────────────────────────────────────
-  //
-  // Scan for tokens matching "Anything x <number>" — these are item name tokens.
-  // The serial number token immediately precedes it, so we anchor on the name token
-  // directly and collect the next 10 numeric/percent tokens after it.
-  //
-  // Token layout after the name token:
-  //   +0: gross value       "158.00"
-  //   +1: disc %            "20.25%"
-  //   +2: taxable amt       "126.00"   ← discounted price per unit
-  //   +3: CGST rate %       "0.00%"
-  //   +4: CGST amt          "0.00"
-  //   +5: SGST rate %       "0.00%"
-  //   +6: SGST amt          "0.00"
-  //   +7: CESS rate %       "0.00%"
-  //   +8: CESS amt          "0.00"
-  //   +9: row total         "126.00"   ← final charged amount for the row
+  const itemsRegionRaw = flat.slice(startMatch.index + startMatch[0].length);
 
-  const ITEM_TOKEN_REGEX = /^(.+?)\s+x\s+(\d+)$/i;
+  // Cut off at the footer "Total" row
+  const endMatch = ITEMS_END_MARKER.exec(itemsRegionRaw);
+  const itemsRegion = endMatch
+    ? itemsRegionRaw.slice(0, endMatch.index)
+    : itemsRegionRaw;
+
+  console.log("[FC Parser] Items region:\n", itemsRegion);
+
+  // ── Items ─────────────────────────────────────────────────────────────────
+  const itemRegex =
+    /\b(\d+)\s+([A-Za-z0-9''&(),.\-/\s]+?)\s+x\s*(\d+)\s*([\d.]+)\s*([\d.]+%?)\s*([\d.]+)\s*([\d.]+%?)\s*([\d.]+)\s*([\d.]+%?)\s*([\d.]+)\s*([\d.]+%?)\s*([\d.]+)\s*([\d.]+)/g;
 
   const items: OrderItem[] = [];
+  let match: RegExpExecArray | null;
 
-  for (let i = 0; i < tokens.length; i++) {
-    const match = tokens[i].match(ITEM_TOKEN_REGEX);
-    if (!match) continue;
+  while ((match = itemRegex.exec(itemsRegion)) !== null) {
+    const [, , rawName, qty, , , taxableAmt, , , , , , , rowTotal] = match;
 
-    const [, name, qtyStr] = match;
-    const qty = parseInt(qtyStr, 10);
+    const name = rawName.replace(/\s+/g, " ").trim();
+    if (!name || /^\d+$/.test(name)) continue;
 
-    // Collect next 10 numeric/percent tokens
-    const dataTokens: string[] = [];
-    let j = i + 1;
-    while (j < tokens.length && dataTokens.length < 10) {
-      if (isNumericOrPercent(tokens[j])) {
-        dataTokens.push(tokens[j]);
-      } else {
-        // Non-numeric token means we've hit the next row's serial number or
-        // a label — stop collecting
-        break;
-      }
-      j++;
-    }
-
-    // We need at least the row total (index 9 = 10th token)
-    // If taxes are all 0, we may get fewer tokens — fall back to taxable amt (index 2)
-    let price: number;
-    if (dataTokens.length >= 10) {
-      price = parseAmount(dataTokens[9]); // row total
-    } else if (dataTokens.length >= 3) {
-      price = parseAmount(dataTokens[2]); // taxable amt fallback
-    } else if (dataTokens.length >= 1) {
-      price = parseAmount(dataTokens[0]); // gross value last resort
-    } else {
-      price = 0;
-    }
-
-    items.push({ name: name.trim(), quantity: qty, price });
+    items.push({
+      name,
+      quantity: parseInt(qty, 10),
+      price: parseAmount(rowTotal || taxableAmt),
+    });
   }
 
-  // ── Bill summary ──────────────────────────────────────────────────────────
-  //
-  // Token stream for bill section:
-  //   "Item Total" | "430.00" | "Delivery Charges(Inclusive of Taxes)" | "0.00"
-  //   | "Handling Fee" | "12.00" | "Referral Coupon" | "0.00"
-  //   | "Coupon Discount" | "0.00" | "Invoice value" | "442.00"
+  // ── Bill Summary ──────────────────────────────────────────────────────────
+  const extract = (pattern: RegExp) => {
+    const m = flat.match(pattern);
+    return m ? parseAmount(m[1]) : 0;
+  };
 
-  let itemTotal = 0;
-  let deliveryCharge = 0;
-  let handlingFee = 0;
-  let couponDiscount = 0;
-  let totalAmount = 0;
+  const itemTotal = extract(/Item\s*Total\s*([\d.]+)/i);
+  const deliveryCharge = extract(
+    /Delivery\s*Charges?(?:\s*\(?Inclusive\s*of\s*Taxes\)?)?\s*([\d.]+)/i
+  );
+  const handlingFee = extract(/Handling\s*Fee\s*([\d.]+)/i);
+  const couponDiscount = extract(/Coupon\s*Discount\s*([\d.]+)/i);
+  const totalAmount =
+    extract(/Invoice\s*value\s*([\d.]+)/i) ||
+    itemTotal + deliveryCharge + handlingFee - couponDiscount;
 
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i];
-    const next = tokens[i + 1] ?? "";
-
-    if (/^Item\s*Total$/i.test(t) && isNumeric(next)) {
-      itemTotal = parseAmount(next);
-    }
-    if (/^Delivery\s*Charges?/i.test(t) && isNumeric(next)) {
-      deliveryCharge = parseAmount(next);
-    }
-    if (/^Handling\s*Fee$/i.test(t) && isNumeric(next)) {
-      handlingFee = parseAmount(next);
-    }
-    if (/^Coupon\s*Discount$/i.test(t) && isNumeric(next)) {
-      couponDiscount = parseAmount(next);
-    }
-    if (/^Invoice\s*value$/i.test(t) && isNumeric(next)) {
-      totalAmount = parseAmount(next);
-    }
+  // ── Guard ─────────────────────────────────────────────────────────────────
+  if (!items.length) {
+    console.error("[FC Parser] No items parsed. Items region:\n", itemsRegion);
+    throw new Error("No items found — make sure this is a FirstClub invoice PDF");
   }
 
-  if (!totalAmount) {
-    totalAmount = itemTotal + deliveryCharge + handlingFee - couponDiscount;
-  }
+  console.log(`[FC Parser] Parsed ${items.length} items, total ₹${totalAmount}`);
 
   return {
     id: orderId,

@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent } from '@/components/ui/card'
-import { Search, Users, User, X, ChevronRight } from 'lucide-react'
+import { Search, Users, User, ChevronRight } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   splitwiseClient,
@@ -20,8 +20,7 @@ interface SplitwiseFriendGroupSelectorProps {
 }
 
 export function SplitwiseFriendGroupSelector({
-  onSelect,
-  onClose,
+  onSelect
 }: SplitwiseFriendGroupSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'friends' | 'groups'>('friends')
@@ -103,9 +102,6 @@ export function SplitwiseFriendGroupSelector({
       <div className="px-6 py-4 border-b">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Add Expense</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
         </div>
         <p className="text-sm text-muted-foreground">
           Select a friend or group to split an expense
