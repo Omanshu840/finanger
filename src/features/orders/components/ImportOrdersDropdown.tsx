@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, ChevronDown, Package } from "lucide-react";
+import { Plus, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ interface Props {
   onImported: (order: UnifiedOrder) => void;
 }
 
-type ActiveDialog = null | "amazon" | "firstclub" | "swiggy" | "flipkart_minutes";
+type ActiveDialog = null | "amazon" | "firstclub" | "swiggy" | "flipkart_minutes" | "amazon_now";
 
 export function ImportOrdersDropdown({ onImported }: Props) {
   const [active, setActive] = useState<ActiveDialog>(null);
@@ -59,6 +59,10 @@ export function ImportOrdersDropdown({ onImported }: Props) {
           <DropdownMenuItem onClick={() => setActive("flipkart_minutes")}>
             Flipkart Minutes
           </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => setActive("amazon_now")}>
+            Amazon Now
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -72,7 +76,7 @@ export function ImportOrdersDropdown({ onImported }: Props) {
       />
 
       <ManualPdfImportSheet
-        open={active === "firstclub" || active === "swiggy" || active === "flipkart_minutes"}
+        open={active === "firstclub" || active === "swiggy" || active === "flipkart_minutes" || active === "amazon_now"}
         activeIntegration={active}
         onOpenChange={(v) => !v && setActive(null)}
         onImported={(order) => {

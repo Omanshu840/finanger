@@ -11,6 +11,7 @@ import {
 	ArrowLeft,
 	Plus,
 	Trash2,
+	ClipboardPaste,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -19,17 +20,37 @@ import {
 } from "../adapters/firstclubPdfImportAdapter";
 import { addManualOrder } from "../storage/manualOrdersStorage";
 import type { OrderItem, UnifiedOrder } from "../types";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+} from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { extractTextFromSwiggyPdf, parseSwiggyInvoicePages } from "../adapters/swiggyPdfImportAdapter";
-import { extractTextFromFlipkartPdf, parseFlipkartMinutesInvoice } from "../adapters/flipkartMinutesPdfImportAdapter";
+import { Textarea } from "@/components/ui/textarea";
+import {
+	extractTextFromSwiggyPdf,
+	parseSwiggyInvoicePages,
+} from "../adapters/swiggyPdfImportAdapter";
+import {
+	extractTextFromFlipkartPdf,
+	parseFlipkartMinutesInvoice,
+} from "../adapters/flipkartMinutesPdfImportAdapter";
+import { parseAmazonManualOrder } from "../adapters/amazonManualImportAdapter";
 
 interface Props {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onImported: (order: UnifiedOrder) => void;
-	activeIntegration: null | "firstclub" | "swiggy" | "amazon" | "flipkart_minutes"; // for dynamic labeling in the UI, extendable for other integrations
+	activeIntegration:
+	| null
+	| "firstclub"
+	| "swiggy"
+	| "amazon"
+	| "flipkart_minutes"
+	| "amazon_now";
 }
 
 type Step = "upload" | "preview" | "importing" | "done";
@@ -42,18 +63,55 @@ interface DraftItem {
 
 const EMPTY_DRAFT: DraftItem = { name: "", qty: "1", price: "" };
 
-export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeIntegration }: Props) {
+// Integrations that use text paste instead of PDF upload
+const TEXT_PASTE_INTEGRATIONS: Props["activeIntegration"][] = [
+	"amazon",
+	"amazon_now",
+];
+
+function getIntegrationLabel(
+	integration: Props["activeIntegration"]
+): string {
+	switch (integration) {
+		case "firstclub":
+			return "FirstClub";
+		case "swiggy":
+			return "Swiggy";
+		case "amazon":
+			return "Amazon";
+		case "amazon_now":
+			return "Amazon Now";
+		case "flipkart_minutes":
+			return "Flipkart Minutes";
+		default:
+			return "Order";
+	}
+}
+
+export function ManualPdfImportSheet({
+	open,
+	onOpenChange,
+	onImported,
+	activeIntegration,
+}: Props) {
 	const [step, setStep] = useState<Step>("upload");
 	const [dragOver, setDragOver] = useState(false);
 	const [parsedOrder, setParsedOrder] = useState<UnifiedOrder | null>(null);
 	const [parseError, setParseError] = useState<string | null>(null);
 	const [isParsing, setIsParsing] = useState(false);
+
+	// Text paste state (Amazon / Amazon Now)
+	const [pasteText, setPasteText] = useState("");
+
 	// Manual item add state
 	const [showAddItem, setShowAddItem] = useState(false);
 	const [draft, setDraft] = useState<DraftItem>(EMPTY_DRAFT);
 	const [draftError, setDraftError] = useState<string | null>(null);
 
 	const inputRef = useRef<HTMLInputElement>(null);
+
+	const isTextPaste = TEXT_PASTE_INTEGRATIONS.includes(activeIntegration);
+	const integrationLabel = getIntegrationLabel(activeIntegration);
 
 	const reset = () => {
 		setStep("upload");
@@ -63,12 +121,15 @@ export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeInt
 		setShowAddItem(false);
 		setDraft(EMPTY_DRAFT);
 		setDraftError(null);
+		setPasteText("");
 	};
 
 	const handleClose = (v: boolean) => {
 		if (!v) reset();
 		onOpenChange(v);
 	};
+
+	// ── PDF handler ─────────────────────────────────────────────────────────────
 
 	const handleFile = async (f: File) => {
 		if (!f.name.endsWith(".pdf")) {
@@ -93,11 +154,13 @@ export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeInt
 				text = await extractTextFromFlipkartPdf(f);
 				order = parseFlipkartMinutesInvoice(text);
 			} else {
-				throw new Error("Unsupported integration");
+				throw new Error("Unsupported integration for PDF upload");
 			}
 
 			if (!order?.items.length) {
-				throw new Error(`No items found — make sure this is a ${activeIntegration === "firstclub" ? "FirstClub" : activeIntegration === "swiggy" ? "Swiggy" : "Flipkart Minutes"} invoice PDF`);
+				throw new Error(
+					`No items found — make sure this is a ${integrationLabel} invoice PDF`
+				);
 			}
 
 			setParsedOrder(order);
@@ -116,7 +179,36 @@ export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeInt
 		if (f) handleFile(f);
 	};
 
-	// ── Manual item helpers ────────────────────────────────────────────────────
+	// ── Text paste handler ──────────────────────────────────────────────────────
+
+	const handleTextParse = async () => {
+		if (!pasteText.trim()) {
+			setParseError("Please paste the order text first");
+			return;
+		}
+
+		setParseError(null);
+		setIsParsing(true);
+
+		try {
+			const order = parseAmazonManualOrder(pasteText);
+
+			if (!order?.items.length) {
+				throw new Error(
+					"No items found — make sure you've pasted the full order details"
+				);
+			}
+
+			setParsedOrder(order);
+			setStep("preview");
+		} catch (err: any) {
+			setParseError(err.message ?? "Failed to parse order text");
+		} finally {
+			setIsParsing(false);
+		}
+	};
+
+	// ── Manual item helpers ─────────────────────────────────────────────────────
 
 	const commitDraftItem = () => {
 		if (!draft.name.trim()) {
@@ -220,7 +312,7 @@ export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeInt
 								size="icon"
 								className="h-8 w-8 shrink-0"
 								onClick={reset}
-								aria-label="Back to upload"
+								aria-label="Back"
 							>
 								<ArrowLeft className="h-4 w-4" />
 							</Button>
@@ -228,24 +320,30 @@ export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeInt
 						<div className="flex items-center gap-2">
 							<Package className="h-5 w-5 text-muted-foreground" />
 							<SheetTitle className="text-base">
-								{step === "upload" && `Import ${activeIntegration === "firstclub" ? "FirstClub" : "Swiggy"} order`}
+								{step === "upload" && `Import ${integrationLabel} order`}
 								{step === "preview" && "Review import"}
-								{step === "done" && "Import complete"}
+								{(step === "importing" || step === "done") &&
+									"Import complete"}
 							</SheetTitle>
 						</div>
 					</div>
 					<SheetDescription className={cn(step === "preview" && "pl-11")}>
-						{step === "upload" && `Upload the PDF invoice from your ${activeIntegration === "firstclub" ? "FirstClub" : "Swiggy"} order email`}
+						{step === "upload" &&
+							(isTextPaste
+								? `Paste the order details from your ${integrationLabel} app`
+								: `Upload the PDF invoice from your ${integrationLabel} order email`)}
 						{step === "preview" && "Check the details before importing"}
-						{step === "done" && "Your order has been added to the orders list"}
+						{(step === "importing" || step === "done") &&
+							"Your order has been added to the orders list"}
 					</SheetDescription>
 				</SheetHeader>
 
-				{/* Body — scrollable */}
+				{/* Body */}
 				<ScrollArea className="min-h-0 flex-1">
 					<div className="px-6 py-5">
-						{/* Step: Upload */}
-						{(step === "upload" || isParsing) && (
+
+						{/* ── Step: Upload (PDF) ─────────────────────────────────────── */}
+						{(step === "upload" || isParsing) && !isTextPaste && (
 							<div className="space-y-4">
 								<input
 									ref={inputRef}
@@ -260,7 +358,10 @@ export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeInt
 
 								<div
 									onClick={() => !isParsing && inputRef.current?.click()}
-									onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+									onDragOver={(e) => {
+										e.preventDefault();
+										setDragOver(true);
+									}}
 									onDragLeave={() => setDragOver(false)}
 									onDrop={handleDrop}
 									className={cn(
@@ -289,7 +390,7 @@ export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeInt
 												</p>
 											</div>
 											<p className="text-xs text-muted-foreground">
-												{activeIntegration === "firstclub" ? "FirstClub" : "Swiggy"} tax invoice format
+												{integrationLabel} tax invoice format
 											</p>
 										</>
 									)}
@@ -303,7 +404,57 @@ export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeInt
 							</div>
 						)}
 
-						{/* Step: Preview */}
+						{/* ── Step: Upload (Text paste — Amazon / Amazon Now) ─────────── */}
+						{(step === "upload" || isParsing) && isTextPaste && (
+							<div className="space-y-4">
+								<div className="space-y-2">
+									<Label htmlFor="order-paste" className="text-sm font-medium">
+										Order details
+									</Label>
+									<p className="text-xs text-muted-foreground">
+										Open the {integrationLabel} app → Your Orders → select the
+										order → long-press and copy all the text, then paste below.
+									</p>
+									<Textarea
+										id="order-paste"
+										value={pasteText}
+										onChange={(e) => {
+											setPasteText(e.target.value);
+											setParseError(null);
+										}}
+										placeholder={`Paste ${integrationLabel} order text here…\n\nExample:\n4 items in order\nTata Salt\n1 kg. 1 unit\n₹27\n₹30\n…\nOrder ID\n#402-xxxxxxx-xxxxxxx`}
+										className="min-h-[280px] resize-none font-mono text-xs leading-relaxed"
+										disabled={isParsing}
+									/>
+								</div>
+
+								{parseError && (
+									<p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+										{parseError}
+									</p>
+								)}
+
+								<Button
+									className="w-full"
+									onClick={handleTextParse}
+									disabled={!pasteText.trim() || isParsing}
+								>
+									{isParsing ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											Parsing…
+										</>
+									) : (
+										<>
+											<ClipboardPaste className="mr-2 h-4 w-4" />
+											Parse order
+										</>
+									)}
+								</Button>
+							</div>
+						)}
+
+						{/* ── Step: Preview ──────────────────────────────────────────── */}
 						{step === "preview" && parsedOrder && (
 							<div className="space-y-4">
 								{/* Order meta */}
@@ -496,7 +647,7 @@ export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeInt
 										onClick={reset}
 									>
 										<X className="mr-2 h-4 w-4" />
-										Change file
+										{isTextPaste ? "Clear" : "Change file"}
 									</Button>
 									<Button className="flex-1" onClick={handleImport}>
 										Import order
