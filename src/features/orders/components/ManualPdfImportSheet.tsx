@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-	extractTextFromPdf,
+	extractTextFromFirstClubPdf,
 	parseFirstClubInvoiceText,
 } from "../adapters/firstclubPdfImportAdapter";
 import { addManualOrder } from "../storage/manualOrdersStorage";
@@ -22,11 +22,14 @@ import type { OrderItem, UnifiedOrder } from "../types";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { extractTextFromSwiggyPdf, parseSwiggyInvoicePages } from "../adapters/swiggyPdfImportAdapter";
+import { extractTextFromFlipkartPdf, parseFlipkartMinutesInvoice } from "../adapters/flipkartMinutesPdfImportAdapter";
 
 interface Props {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onImported: (order: UnifiedOrder) => void;
+	activeIntegration: null | "firstclub" | "swiggy" | "amazon" | "flipkart_minutes"; // for dynamic labeling in the UI, extendable for other integrations
 }
 
 type Step = "upload" | "preview" | "importing" | "done";
@@ -39,7 +42,7 @@ interface DraftItem {
 
 const EMPTY_DRAFT: DraftItem = { name: "", qty: "1", price: "" };
 
-export function FirstClubPdfImportDialog({ open, onOpenChange, onImported }: Props) {
+export function ManualPdfImportSheet({ open, onOpenChange, onImported, activeIntegration }: Props) {
 	const [step, setStep] = useState<Step>("upload");
 	const [dragOver, setDragOver] = useState(false);
 	const [parsedOrder, setParsedOrder] = useState<UnifiedOrder | null>(null);
@@ -77,11 +80,24 @@ export function FirstClubPdfImportDialog({ open, onOpenChange, onImported }: Pro
 		setIsParsing(true);
 
 		try {
-			const text = await extractTextFromPdf(f);
-			const order = parseFirstClubInvoiceText(text);
+			let text;
+			let order;
 
-			if (!order.items.length) {
-				throw new Error("No items found — make sure this is a FirstClub invoice PDF");
+			if (activeIntegration === "firstclub") {
+				text = await extractTextFromFirstClubPdf(f);
+				order = parseFirstClubInvoiceText(text);
+			} else if (activeIntegration === "swiggy") {
+				text = await extractTextFromSwiggyPdf(f);
+				order = parseSwiggyInvoicePages(text);
+			} else if (activeIntegration === "flipkart_minutes") {
+				text = await extractTextFromFlipkartPdf(f);
+				order = parseFlipkartMinutesInvoice(text);
+			} else {
+				throw new Error("Unsupported integration");
+			}
+
+			if (!order?.items.length) {
+				throw new Error(`No items found — make sure this is a ${activeIntegration === "firstclub" ? "FirstClub" : activeIntegration === "swiggy" ? "Swiggy" : "Flipkart Minutes"} invoice PDF`);
 			}
 
 			setParsedOrder(order);
@@ -113,7 +129,7 @@ export function FirstClubPdfImportDialog({ open, onOpenChange, onImported }: Pro
 			setDraftError("Quantity must be at least 1");
 			return;
 		}
-		if (isNaN(price) || price < 0) {
+		if (isNaN(price)) {
 			setDraftError("Enter a valid price");
 			return;
 		}
@@ -193,7 +209,7 @@ export function FirstClubPdfImportDialog({ open, onOpenChange, onImported }: Pro
 		<Sheet open={open} onOpenChange={handleClose}>
 			<SheetContent
 				side="right"
-				className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+				className="flex h-full w-full flex-col gap-0 overflow-scroll p-0 sm:max-w-md"
 			>
 				{/* Header */}
 				<SheetHeader className="border-b px-6 py-4">
@@ -212,14 +228,14 @@ export function FirstClubPdfImportDialog({ open, onOpenChange, onImported }: Pro
 						<div className="flex items-center gap-2">
 							<Package className="h-5 w-5 text-muted-foreground" />
 							<SheetTitle className="text-base">
-								{step === "upload" && "Import FirstClub order"}
+								{step === "upload" && `Import ${activeIntegration === "firstclub" ? "FirstClub" : "Swiggy"} order`}
 								{step === "preview" && "Review import"}
 								{step === "done" && "Import complete"}
 							</SheetTitle>
 						</div>
 					</div>
 					<SheetDescription className={cn(step === "preview" && "pl-11")}>
-						{step === "upload" && "Upload the PDF invoice from your FirstClub order email"}
+						{step === "upload" && `Upload the PDF invoice from your ${activeIntegration === "firstclub" ? "FirstClub" : "Swiggy"} order email`}
 						{step === "preview" && "Check the details before importing"}
 						{step === "done" && "Your order has been added to the orders list"}
 					</SheetDescription>
@@ -273,7 +289,7 @@ export function FirstClubPdfImportDialog({ open, onOpenChange, onImported }: Pro
 												</p>
 											</div>
 											<p className="text-xs text-muted-foreground">
-												Trolleypop / FirstClub tax invoice format
+												{activeIntegration === "firstclub" ? "FirstClub" : "Swiggy"} tax invoice format
 											</p>
 										</>
 									)}
@@ -325,9 +341,9 @@ export function FirstClubPdfImportDialog({ open, onOpenChange, onImported }: Pro
 												key={idx}
 												className="group flex items-center justify-between px-4 py-2.5 text-sm"
 											>
-												<div className="min-w-0 flex-1">
-													<p className="truncate font-medium">{item.name}</p>
-													<p className="text-xs text-muted-foreground">
+												<div className="flex-1 min-w-0">
+													<p className="font-medium leading-snug break-words">{item.name}</p>
+													<p className="text-xs text-muted-foreground mt-0.5">
 														qty {item.quantity}
 													</p>
 												</div>
@@ -345,115 +361,115 @@ export function FirstClubPdfImportDialog({ open, onOpenChange, onImported }: Pro
 												</div>
 											</div>
 										))}
-										</div>
-										{!showAddItem && (
-											<Button
+									</div>
+									{!showAddItem && (
+										<Button
 											variant={"secondary"}
-												size="sm"
-												className="h-7 mt-2 gap-1.5 text-xs"
-												onClick={() => setShowAddItem(true)}
-											>
-												<Plus className="h-3.5 w-3.5" />
-												Add item
-											</Button>
-										)}
+											size="sm"
+											className="h-7 mt-2 gap-1.5 text-xs"
+											onClick={() => setShowAddItem(true)}
+										>
+											<Plus className="h-3.5 w-3.5" />
+											Add item
+										</Button>
+									)}
 
-										{/* Inline add-item form */}
-										{showAddItem && (
-											<div className="px-4 py-3 space-y-3 bg-muted/20">
-												<div className="grid grid-cols-[1fr_64px_80px] gap-2">
-													<div className="space-y-1">
-														<Label className="text-xs text-muted-foreground">
-															Name
-														</Label>
-														<Input
-															autoFocus
-															placeholder="Item name"
-															value={draft.name}
-															onChange={(e) =>
-																setDraft((d) => ({
-																	...d,
-																	name: e.target.value,
-																}))
-															}
-															onKeyDown={(e) =>
-																e.key === "Enter" && commitDraftItem()
-															}
-															className="h-8 text-sm"
-														/>
-													</div>
-													<div className="space-y-1">
-														<Label className="text-xs text-muted-foreground">
-															Qty
-														</Label>
-														<Input
-															type="number"
-															min={1}
-															placeholder="1"
-															value={draft.qty}
-															onChange={(e) =>
-																setDraft((d) => ({
-																	...d,
-																	qty: e.target.value,
-																}))
-															}
-															onKeyDown={(e) =>
-																e.key === "Enter" && commitDraftItem()
-															}
-															className="h-8 text-sm"
-														/>
-													</div>
-													<div className="space-y-1">
-														<Label className="text-xs text-muted-foreground">
-															Price (₹)
-														</Label>
-														<Input
-															type="number"
-															min={0}
-															placeholder="0.00"
-															value={draft.price}
-															onChange={(e) =>
-																setDraft((d) => ({
-																	...d,
-																	price: e.target.value,
-																}))
-															}
-															onKeyDown={(e) =>
-																e.key === "Enter" && commitDraftItem()
-															}
-															className="h-8 text-sm"
-														/>
-													</div>
+									{/* Inline add-item form */}
+									{showAddItem && (
+										<div className="px-4 py-3 space-y-3 bg-muted/20">
+											<div className="grid grid-cols-[1fr_64px_80px] gap-2">
+												<div className="space-y-1">
+													<Label className="text-xs text-muted-foreground">
+														Name
+													</Label>
+													<Input
+														autoFocus
+														placeholder="Item name"
+														value={draft.name}
+														onChange={(e) =>
+															setDraft((d) => ({
+																...d,
+																name: e.target.value,
+															}))
+														}
+														onKeyDown={(e) =>
+															e.key === "Enter" && commitDraftItem()
+														}
+														className="h-8 text-sm"
+													/>
 												</div>
-
-												{draftError && (
-													<p className="text-xs text-destructive">{draftError}</p>
-												)}
-
-												<div className="flex gap-2">
-													<Button
-														size="sm"
-														className="h-8 flex-1 text-xs"
-														onClick={commitDraftItem}
-													>
-														<Plus className="mr-1.5 h-3.5 w-3.5" />
-														Add
-													</Button>
-													<Button
-														size="sm"
-														variant="ghost"
-														className="h-8 px-3 text-xs"
-														onClick={() => {
-															setShowAddItem(false);
-															setDraft(EMPTY_DRAFT);
-															setDraftError(null);
-														}}
-													>
-														<X className="h-3.5 w-3.5" />
-													</Button>
+												<div className="space-y-1">
+													<Label className="text-xs text-muted-foreground">
+														Qty
+													</Label>
+													<Input
+														type="number"
+														min={1}
+														placeholder="1"
+														value={draft.qty}
+														onChange={(e) =>
+															setDraft((d) => ({
+																...d,
+																qty: e.target.value,
+															}))
+														}
+														onKeyDown={(e) =>
+															e.key === "Enter" && commitDraftItem()
+														}
+														className="h-8 text-sm"
+													/>
+												</div>
+												<div className="space-y-1">
+													<Label className="text-xs text-muted-foreground">
+														Price (₹)
+													</Label>
+													<Input
+														type="number"
+														min={0}
+														placeholder="0.00"
+														value={draft.price}
+														onChange={(e) =>
+															setDraft((d) => ({
+																...d,
+																price: e.target.value,
+															}))
+														}
+														onKeyDown={(e) =>
+															e.key === "Enter" && commitDraftItem()
+														}
+														className="h-8 text-sm"
+													/>
 												</div>
 											</div>
-										)}
+
+											{draftError && (
+												<p className="text-xs text-destructive">{draftError}</p>
+											)}
+
+											<div className="flex gap-2">
+												<Button
+													size="sm"
+													className="h-8 flex-1 text-xs"
+													onClick={commitDraftItem}
+												>
+													<Plus className="mr-1.5 h-3.5 w-3.5" />
+													Add
+												</Button>
+												<Button
+													size="sm"
+													variant="ghost"
+													className="h-8 px-3 text-xs"
+													onClick={() => {
+														setShowAddItem(false);
+														setDraft(EMPTY_DRAFT);
+														setDraftError(null);
+													}}
+												>
+													<X className="h-3.5 w-3.5" />
+												</Button>
+											</div>
+										</div>
+									)}
 								</div>
 
 								{/* Bill summary from rawData */}

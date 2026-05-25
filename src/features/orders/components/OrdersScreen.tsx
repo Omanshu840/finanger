@@ -44,15 +44,15 @@ const INTEGRATION_META: IntegrationMeta[] = [
 		isConnected: true,
 		isSupported: true,
 	},
-	// {
-	// 	key: "swiggy",
-	// 	label: "Swiggy",
-	// 	color: "bg-orange-100",
-	// 	textColor: "text-orange-700 dark:text-orange-400",
-	// 	logoUrl: "https://www.swiggy.com/logo.png",
-	// 	isConnected: false,
-	// 	isSupported: true,
-	// },
+	{
+		key: "swiggy",
+		label: "Swiggy",
+		color: "bg-orange-100",
+		textColor: "text-orange-700 dark:text-orange-400",
+		logoUrl: "https://media-assets.swiggy.com/portal/m/logo_192x192.png",
+		isConnected: true,
+		isSupported: true,
+	},
 	// {
 	// 	key: "zomato",
 	// 	label: "Zomato",
@@ -80,15 +80,15 @@ const INTEGRATION_META: IntegrationMeta[] = [
 	// 	isConnected: false,
 	// 	isSupported: false,
 	// },
-	// {
-	// 	key: "flipkart_minutes",
-	// 	label: "Flipkart Minutes",
-	// 	color: "bg-indigo-100",
-	// 	textColor: "text-indigo-700 dark:text-indigo-400",
-	// 	logoUrl: "https://www.flipkart.com/logo.png",
-	// 	isConnected: false,
-	// 	isSupported: false,
-	// },
+	{
+		key: "flipkart_minutes",
+		label: "Flipkart Minutes",
+		color: "bg-indigo-100",
+		textColor: "text-indigo-700 dark:text-indigo-400",
+		logoUrl: "https://static-assets-web.flixcart.com/batman-returns/batman-returns/p/images/logo_lite-cbb357.png",
+		isConnected: true,
+		isSupported: true,
+	},
 ];
 
 export default function OrdersScreen() {

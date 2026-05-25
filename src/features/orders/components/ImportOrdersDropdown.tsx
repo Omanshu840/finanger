@@ -9,14 +9,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { ManualAmazonImportDialog } from "./ManualAmazonImportDialog";
-import { FirstClubPdfImportDialog } from "./FirstClubPdfImportDialog";
+import { ManualPdfImportSheet } from "./ManualPdfImportSheet";
 import type { UnifiedOrder } from "../types";
 
 interface Props {
   onImported: (order: UnifiedOrder) => void;
 }
 
-type ActiveDialog = null | "amazon" | "firstclub";
+type ActiveDialog = null | "amazon" | "firstclub" | "swiggy" | "flipkart_minutes";
 
 export function ImportOrdersDropdown({ onImported }: Props) {
   const [active, setActive] = useState<ActiveDialog>(null);
@@ -49,8 +49,15 @@ export function ImportOrdersDropdown({ onImported }: Props) {
           </DropdownMenuLabel>
 
           <DropdownMenuItem onClick={() => setActive("firstclub")}>
-            <Package className="mr-2 h-4 w-4" />
             FirstClub
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => setActive("swiggy")}>
+            Swiggy
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => setActive("flipkart_minutes")}>
+            Flipkart Minutes
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -64,8 +71,9 @@ export function ImportOrdersDropdown({ onImported }: Props) {
         }}
       />
 
-      <FirstClubPdfImportDialog
-        open={active === "firstclub"}
+      <ManualPdfImportSheet
+        open={active === "firstclub" || active === "swiggy" || active === "flipkart_minutes"}
+        activeIntegration={active}
         onOpenChange={(v) => !v && setActive(null)}
         onImported={(order) => {
           onImported(order);

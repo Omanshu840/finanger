@@ -48,7 +48,7 @@ export interface UnifiedOrder {
 
   // For manual orders (e.g., imported via Amazon Text), we can have additional metadata
   isManual?: boolean;
-  manualImportType?: "amazon-text" | "firstclub-pdf"; // extendable for other manual import types
+  manualImportType?: "amazon-text" | "firstclub-pdf" | "swiggy-pdf" | "flipkart-pdf"; // extendable for other manual import types
 }
 
 export interface IntegrationMeta {

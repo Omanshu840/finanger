@@ -12,7 +12,7 @@ function isTextItem(item: TextItem | TextMarkedContent): item is TextItem {
 // by spaces — we intentionally flatten everything since token positions
 // are inconsistent across PDF renderers.
 
-export async function extractTextFromPdf(file: File): Promise<string> {
+export async function extractTextFromFirstClubPdf(file: File): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
 
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
