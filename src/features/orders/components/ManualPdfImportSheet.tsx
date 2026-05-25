@@ -38,7 +38,7 @@ import {
 	extractTextFromFlipkartPdf,
 	parseFlipkartMinutesInvoice,
 } from "../adapters/flipkartMinutesPdfImportAdapter";
-import { parseAmazonManualOrder } from "../adapters/amazonManualImportAdapter";
+import { parseAmazonManualOrder, sanitizePastedText } from "../adapters/amazonManualImportAdapter";
 
 interface Props {
 	open: boolean;
@@ -420,6 +420,13 @@ export function ManualPdfImportSheet({
 										value={pasteText}
 										onChange={(e) => {
 											setPasteText(e.target.value);
+											setParseError(null);
+										}}
+										onPaste={(e) => {
+											e.preventDefault();
+											const raw = e.clipboardData.getData("text/plain");
+											const cleaned = sanitizePastedText(raw);
+											setPasteText(cleaned);
 											setParseError(null);
 										}}
 										placeholder={`Paste ${integrationLabel} order text here…\n\nExample:\n4 items in order\nTata Salt\n1 kg. 1 unit\n₹27\n₹30\n…\nOrder ID\n#402-xxxxxxx-xxxxxxx`}

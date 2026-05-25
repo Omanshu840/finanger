@@ -5,6 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -33,16 +34,15 @@ export function ImportOrdersDropdown({ onImported }: Props) {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end" className="w-52">
-          {/* <DropdownMenuLabel className="text-xs text-muted-foreground">
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
             Paste text
-          </DropdownMenuLabel> */}
+          </DropdownMenuLabel>
 
-          {/* <DropdownMenuItem onClick={() => setActive("amazon")}>
-            <FileText className="mr-2 h-4 w-4" />
-            Amazon
+          <DropdownMenuItem onClick={() => setActive("amazon_now")}>
+            Amazon Now
           </DropdownMenuItem>
 
-          <DropdownMenuSeparator /> */}
+          <DropdownMenuSeparator />
 
           <DropdownMenuLabel className="text-xs text-muted-foreground">
             Upload PDF
@@ -58,10 +58,6 @@ export function ImportOrdersDropdown({ onImported }: Props) {
 
           <DropdownMenuItem onClick={() => setActive("flipkart_minutes")}>
             Flipkart Minutes
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => setActive("amazon_now")}>
-            Amazon Now
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

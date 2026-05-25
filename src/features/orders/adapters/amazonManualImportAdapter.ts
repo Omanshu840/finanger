@@ -1,5 +1,76 @@
 import type { UnifiedOrder, OrderItem } from "../types";
 
+export function sanitizePastedText(raw: string): string {
+  // Step 1: Basic unicode normalization
+  let text = raw
+    .replace(/[\u00a0\u202f\u2007\u2008\u2009\u200a\u3000]/g, " ")
+    .replace(/[\u200b-\u200f\u2028\u2029\u2060\ufeff\u00ad]/g, "")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-");
+
+  // Step 2: Whitelist — keep only parser-relevant characters
+  text = text.replace(/[^\p{L}\p{N}₹#.,\-():\/'"@\n ]/gu, "");
+
+  // Step 3: Normalize lines
+  let lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  // Step 4: Remove ASIN codes (standalone uppercase alphanumeric 8-10 chars, e.g. B07BG62MBV)
+  lines = lines.filter((l) => !/^[A-Z0-9]{8,12}$/.test(l));
+
+  // Step 5: Merge split weight+unit lines into one meta line
+  // Detects pattern: "250 g" / "." / "2 units"  →  "250 g. 2 units"
+  // Also handles:    "1 kg"  / "." / "1 unit"   →  "1 kg. 1 unit"
+  // Also handles:    "Approx. (180-200 g)" / "." / "1 unit" → "Approx. (180-200 g). 1 unit"
+  const merged: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const curr = lines[i];
+    const next = lines[i + 1];
+    const afterNext = lines[i + 2];
+
+    const isSeparatorDot = next === ".";
+    const isUnitLine = afterNext && /^\d+\s*units?$/i.test(afterNext);
+    const isWeightOrMeta =
+      /^\d+\s*(kg|g|ml|l|pcs?|pc)\b/i.test(curr) ||
+      /^approx\./i.test(curr) ||
+      /^\d+\s*pcs?\./i.test(curr);
+
+    if (isSeparatorDot && isUnitLine && isWeightOrMeta) {
+      // Merge: "250 g" + "." + "2 units" → "250 g. 2 units"
+      merged.push(`${curr}. ${afterNext}`);
+      i += 3;
+      continue;
+    }
+
+    merged.push(curr);
+    i++;
+  }
+
+  // Step 6: Merge split price lines
+  // "₹" on its own line followed by a number → merge into "₹24"
+  const priceFixed: string[] = [];
+  let j = 0;
+  while (j < merged.length) {
+    const curr = merged[j];
+    const next = merged[j + 1];
+
+    if (curr === "₹" && next && /^\d+(\.\d+)?$/.test(next)) {
+      priceFixed.push(`₹${next}`);
+      j += 2;
+      continue;
+    }
+
+    priceFixed.push(curr);
+    j++;
+  }
+
+  return priceFixed.join("\n").trim();
+}
+
 function parsePrice(text: string): number | undefined {
   const match = text.replace(/,/g, "").match(/₹\s*(\d+(?:\.\d+)?)/);
   return match ? parseFloat(match[1]) : undefined;
@@ -64,15 +135,6 @@ export function parseAmazonManualOrder(input: string): UnifiedOrder {
   if (orderPlacedIndex !== -1 && lines[orderPlacedIndex + 1]) {
     const parsed = parseOrderDate(lines[orderPlacedIndex + 1]);
     if (parsed) placedAt = parsed;
-  }
-
-  // ── Payment method ────────────────────────────────────────────────────────
-  let paymentMethod: string | undefined;
-  const paymentIndex = lines.findIndex(
-    (line) => line.toLowerCase() === "payment"
-  );
-  if (paymentIndex !== -1 && lines[paymentIndex + 1]) {
-    paymentMethod = lines[paymentIndex + 1];
   }
 
   // ── Delivery info ─────────────────────────────────────────────────────────
