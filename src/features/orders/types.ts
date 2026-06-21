@@ -5,8 +5,8 @@ export type IntegrationSource =
   | "zepto"
   | "firstclub"
   | "amazon_now"
-  | "flipkart_minutes";
-
+  | "flipkart_minutes"
+  | "custom";
 
  export const INTEGRATION_LABELS: Record<IntegrationSource, string> = {
  	blinkit: "Blinkit",
@@ -16,6 +16,7 @@ export type IntegrationSource =
  	firstclub: "FirstClub",
  	amazon_now: "Amazon Now",
  	flipkart_minutes: "Flipkart Minutes",
+ 	custom: "Custom",
  }; 
 
 export interface OrderItem {
@@ -45,10 +46,11 @@ export interface UnifiedOrder {
     isTotal: boolean;
   }[];
   deliveryLabel?: string;
+  customStoreName?: string;
 
   // For manual orders (e.g., imported via Amazon Text), we can have additional metadata
   isManual?: boolean;
-  manualImportType?: "amazon-text" | "firstclub-pdf" | "swiggy-pdf" | "flipkart-pdf"; // extendable for other manual import types
+  manualImportType?: "amazon-text" | "firstclub-pdf" | "swiggy-pdf" | "flipkart-pdf" | "custom"; // extendable for other manual import types
 }
 
 export interface IntegrationMeta {

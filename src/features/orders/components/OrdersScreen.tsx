@@ -89,6 +89,15 @@ const INTEGRATION_META: IntegrationMeta[] = [
 		isConnected: true,
 		isSupported: true,
 	},
+	{
+		key: "custom",
+		label: "Custom",
+		color: "bg-gray-100",
+		textColor: "text-gray-700 dark:text-gray-400",
+		logoUrl: "https://imgs.search.brave.com/lfkkxWHnw4hH335x0GE-AqFOBoPJyb7GDRd-y9idHWQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pY29u/cy52ZXJ5aWNvbi5j/b20vcG5nL28vbWlz/Y2VsbGFuZW91cy9z/b21lLWljb25zLWlu/LXllbGxvdy9vcmRl/ci0yMDQucG5n", // no specific logo
+		isConnected: true,
+		isSupported: true,
+	},
 ];
 
 export default function OrdersScreen() {

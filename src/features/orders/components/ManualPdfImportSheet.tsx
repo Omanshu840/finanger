@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
@@ -50,7 +50,8 @@ interface Props {
 	| "swiggy"
 	| "amazon"
 	| "flipkart_minutes"
-	| "amazon_now";
+	| "amazon_now"
+	| "custom";
 }
 
 type Step = "upload" | "preview" | "importing" | "done";
@@ -83,6 +84,8 @@ function getIntegrationLabel(
 			return "Amazon Now";
 		case "flipkart_minutes":
 			return "Flipkart Minutes";
+		case "custom":
+			return "Custom Order";
 		default:
 			return "Order";
 	}
@@ -112,6 +115,23 @@ export function ManualPdfImportSheet({
 
 	const isTextPaste = TEXT_PASTE_INTEGRATIONS.includes(activeIntegration);
 	const integrationLabel = getIntegrationLabel(activeIntegration);
+	const isCustom = activeIntegration === "custom";
+
+	useEffect(() => {
+		if (open && isCustom && !parsedOrder) {
+			setParsedOrder({
+				id: `custom-${Date.now()}`,
+				source: "custom",
+				placedAt: new Date(),
+				items: [],
+				totalAmount: 0,
+				isManual: true,
+				manualImportType: "custom",
+				customStoreName: "",
+			});
+			setStep("preview");
+		}
+	}, [open, isCustom, parsedOrder]);
 
 	const reset = () => {
 		setStep("upload");
@@ -285,6 +305,10 @@ export function ManualPdfImportSheet({
 
 	const handleImport = () => {
 		if (!parsedOrder) return;
+		if (isCustom && !parsedOrder.customStoreName?.trim()) {
+			toast.error("Store name is required for custom orders");
+			return;
+		}
 		setStep("importing");
 
 		try {
@@ -466,26 +490,60 @@ export function ManualPdfImportSheet({
 							<div className="space-y-4">
 								{/* Order meta */}
 								<div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm">
-									<div className="flex items-center justify-between">
-										<span className="text-muted-foreground">Order ID</span>
-										<span className="font-mono font-medium">
-											{parsedOrder.id.replace("firstclub-", "")}
-										</span>
-									</div>
-									<div className="mt-1 flex items-center justify-between">
-										<span className="text-muted-foreground">Date</span>
-										<span>
-											{parsedOrder.placedAt.toLocaleDateString("en-IN", {
-												day: "2-digit",
-												month: "short",
-												year: "numeric",
-											})}
-										</span>
-									</div>
-									<div className="mt-1 flex items-center justify-between font-semibold">
-										<span>Total</span>
-										<span>₹{parsedOrder.totalAmount?.toFixed(2)}</span>
-									</div>
+									{isCustom ? (
+										<div className="flex flex-col gap-3">
+											<div className="flex flex-col gap-1.5">
+												<Label className="text-xs text-muted-foreground">Store / Place Name</Label>
+												<Input
+													value={parsedOrder.customStoreName || ""}
+													onChange={(e) => setParsedOrder({ ...parsedOrder, customStoreName: e.target.value })}
+													placeholder="e.g. DMart, Haldiram's"
+													className="h-8 text-sm"
+												/>
+											</div>
+											<div className="flex flex-col gap-1.5">
+												<Label className="text-xs text-muted-foreground">Date & Time</Label>
+												<Input
+													type="datetime-local"
+													value={new Date(parsedOrder.placedAt.getTime() - parsedOrder.placedAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+													onChange={(e) => {
+														const newDate = new Date(e.target.value);
+														if (!isNaN(newDate.getTime())) {
+															setParsedOrder({ ...parsedOrder, placedAt: newDate });
+														}
+													}}
+													className="h-8 text-sm"
+												/>
+											</div>
+											<div className="flex items-center justify-between font-semibold pt-1 border-t mt-1">
+												<span>Total</span>
+												<span>₹{parsedOrder.totalAmount?.toFixed(2)}</span>
+											</div>
+										</div>
+									) : (
+										<>
+											<div className="flex items-center justify-between">
+												<span className="text-muted-foreground">Order ID</span>
+												<span className="font-mono font-medium">
+													{parsedOrder.id.replace("firstclub-", "")}
+												</span>
+											</div>
+											<div className="mt-1 flex items-center justify-between">
+												<span className="text-muted-foreground">Date</span>
+												<span>
+													{parsedOrder.placedAt.toLocaleDateString("en-IN", {
+														day: "2-digit",
+														month: "short",
+														year: "numeric",
+													})}
+												</span>
+											</div>
+											<div className="mt-1 flex items-center justify-between font-semibold">
+												<span>Total</span>
+												<span>₹{parsedOrder.totalAmount?.toFixed(2)}</span>
+											</div>
+										</>
+									)}
 								</div>
 
 								{/* Items list */}
@@ -535,7 +593,7 @@ export function ManualPdfImportSheet({
 									{/* Inline add-item form */}
 									{showAddItem && (
 										<div className="px-4 py-3 space-y-3 bg-muted/20">
-											<div className="grid grid-cols-[1fr_64px_80px] gap-2">
+											<div className="grid grid-cols-[1fr_80px] gap-2">
 												<div className="space-y-1">
 													<Label className="text-xs text-muted-foreground">
 														Name
@@ -547,28 +605,7 @@ export function ManualPdfImportSheet({
 														onChange={(e) =>
 															setDraft((d) => ({
 																...d,
-																name: e.target.value,
-															}))
-														}
-														onKeyDown={(e) =>
-															e.key === "Enter" && commitDraftItem()
-														}
-														className="h-8 text-sm"
-													/>
-												</div>
-												<div className="space-y-1">
-													<Label className="text-xs text-muted-foreground">
-														Qty
-													</Label>
-													<Input
-														type="number"
-														min={1}
-														placeholder="1"
-														value={draft.qty}
-														onChange={(e) =>
-															setDraft((d) => ({
-																...d,
-																qty: e.target.value,
+																name: e.target.value
 															}))
 														}
 														onKeyDown={(e) =>
@@ -590,6 +627,7 @@ export function ManualPdfImportSheet({
 															setDraft((d) => ({
 																...d,
 																price: e.target.value,
+																qty: "1"
 															}))
 														}
 														onKeyDown={(e) =>

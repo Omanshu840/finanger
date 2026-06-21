@@ -52,7 +52,7 @@ export function OrderCard({ order, meta, onImportToSplitwise }: Props) {
           {/* Order meta */}
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold">{meta.label}</span>
+              <span className="font-semibold">{order.customStoreName || meta.label}</span>
               {order.status && (
                 <span
                   className={cn(
