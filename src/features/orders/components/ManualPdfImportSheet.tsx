@@ -38,6 +38,10 @@ import {
 	extractTextFromFlipkartPdf,
 	parseFlipkartMinutesInvoice,
 } from "../adapters/flipkartMinutesPdfImportAdapter";
+import {
+	extractTextFromZeptoPdf,
+	parseZeptoInvoicePages,
+} from "../adapters/zeptoPdfImportAdapter";
 import { parseAmazonManualOrder, sanitizePastedText } from "../adapters/amazonManualImportAdapter";
 
 interface Props {
@@ -48,6 +52,7 @@ interface Props {
 	| null
 	| "firstclub"
 	| "swiggy"
+	| "zepto"
 	| "amazon"
 	| "flipkart_minutes"
 	| "amazon_now"
@@ -78,6 +83,8 @@ function getIntegrationLabel(
 			return "FirstClub";
 		case "swiggy":
 			return "Swiggy";
+		case "zepto":
+			return "Zepto";
 		case "amazon":
 			return "Amazon";
 		case "amazon_now":
@@ -173,6 +180,9 @@ export function ManualPdfImportSheet({
 			} else if (activeIntegration === "flipkart_minutes") {
 				text = await extractTextFromFlipkartPdf(f);
 				order = parseFlipkartMinutesInvoice(text);
+			} else if (activeIntegration === "zepto") {
+				text = await extractTextFromZeptoPdf(f);
+				order = parseZeptoInvoicePages(text);
 			} else {
 				throw new Error("Unsupported integration for PDF upload");
 			}

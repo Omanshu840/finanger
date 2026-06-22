@@ -17,7 +17,7 @@ interface Props {
   onImported: (order: UnifiedOrder) => void;
 }
 
-type ActiveDialog = null | "amazon" | "firstclub" | "swiggy" | "flipkart_minutes" | "amazon_now" | "custom";
+type ActiveDialog = null | "amazon" | "firstclub" | "swiggy" | "zepto" | "flipkart_minutes" | "amazon_now" | "custom";
 
 export function ImportOrdersDropdown({ onImported }: Props) {
   const [active, setActive] = useState<ActiveDialog>(null);
@@ -56,6 +56,10 @@ export function ImportOrdersDropdown({ onImported }: Props) {
             Swiggy
           </DropdownMenuItem>
 
+          <DropdownMenuItem onClick={() => setActive("zepto")}>
+            Zepto
+          </DropdownMenuItem>
+
           <DropdownMenuItem onClick={() => setActive("flipkart_minutes")}>
             Flipkart Minutes
           </DropdownMenuItem>
@@ -82,7 +86,7 @@ export function ImportOrdersDropdown({ onImported }: Props) {
       />
 
       <ManualPdfImportSheet
-        open={active === "firstclub" || active === "swiggy" || active === "flipkart_minutes" || active === "amazon_now" || active === "custom"}
+        open={active === "firstclub" || active === "swiggy" || active === "zepto" || active === "flipkart_minutes" || active === "amazon_now" || active === "custom"}
         activeIntegration={active}
         onOpenChange={(v) => !v && setActive(null)}
         onImported={(order) => {
